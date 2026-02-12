@@ -1,0 +1,70 @@
+services:
+
+  # --- API (Express + BullMQ workers running together for now) ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      # MongoDB is external — set MONGODB_URI in your .env
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src  # hot reload via tsx watch
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # --- When ready to split: uncomment this and change api command to start:api ---
+  # worker:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   command: npm run start:worker
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - NODE_ENV=development
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
+  # --- Redis (queue only — MongoDB is external) ---
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes  # persist jobs to disk
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # --- BullMQ Dashboard (dev only — remove in production) ---
+  bull-board:
+    image: deadly0/bull-board
+    ports:
+      - "3001:3000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis_data:

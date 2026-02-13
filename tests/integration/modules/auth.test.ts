@@ -2,7 +2,6 @@ import request from 'supertest';
 import app from '@/config/app';
 import { createTestUser } from '../../fixtures/user.factory';
 
-// Mock queues — integration tests shouldn't need Redis
 jest.mock('@/queues/email.queue', () => ({
   emailQueue: { add: jest.fn() },
 }));
@@ -14,7 +13,7 @@ jest.mock('@/config/redis', () => ({
 }));
 
 describe('POST /api/v1/auth/register', () => {
-  it('should register a user and return 201 with tokens', async () => {
+  it('registers a user and returns 201 with tokens', async () => {
     const res = await request(app).post('/api/v1/auth/register').send({
       firstName: 'Barry',
       lastName: 'Tester',
@@ -26,11 +25,10 @@ describe('POST /api/v1/auth/register', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.tokens.accessToken).toBeDefined();
     expect(res.body.data.user.email).toBe('barry@integration.com');
-    // Password should never appear in the response
     expect(res.body.data.user.passwordHash).toBeUndefined();
   });
 
-  it('should return 400 for invalid payload', async () => {
+  it('returns 400 for invalid payload', async () => {
     const res = await request(app).post('/api/v1/auth/register').send({
       email: 'not-an-email',
       password: 'weak',
@@ -41,7 +39,7 @@ describe('POST /api/v1/auth/register', () => {
     expect(res.body.errors).toBeDefined();
   });
 
-  it('should return 409 for duplicate email', async () => {
+  it('returns 409 for duplicate email', async () => {
     await createTestUser({ email: 'dupe@test.com' });
 
     const res = await request(app).post('/api/v1/auth/register').send({
@@ -60,7 +58,7 @@ describe('POST /api/v1/auth/login', () => {
     await createTestUser({ email: 'login@integration.com', password: 'Password123' });
   });
 
-  it('should login and return tokens', async () => {
+  it('logs in and returns tokens', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: 'login@integration.com', password: 'Password123' });
@@ -69,7 +67,7 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.body.data.tokens.accessToken).toBeDefined();
   });
 
-  it('should return 401 for wrong credentials', async () => {
+  it('returns 401 for wrong credentials', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: 'login@integration.com', password: 'WrongPassword1' });

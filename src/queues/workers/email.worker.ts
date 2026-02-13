@@ -3,15 +3,33 @@ import { redisConnection } from '@/config/redis';
 import { EmailJobData } from '@/queues/email.queue';
 import { logger } from '@/utils/logger';
 
-/**
- * This worker runs in the background, pulling jobs off the email queue.
- * If you later split into separate containers, move this to workers.ts
- * and run it as its own process — zero code changes needed.
- */
+// --- Individual senders (replace with nodemailer / Resend / SES) ---
+
+async function sendWelcomeEmail(data: Partial<EmailJobData>): Promise<void> {
+  logger.info({ to: data.email }, '[email-worker] sending welcome email');
+  // TODO: implement with your email provider
+}
+
+async function sendEnrollmentConfirmation(data: Partial<EmailJobData>): Promise<void> {
+  logger.info({ studentId: data.studentId }, '[email-worker] sending enrollment confirmation');
+  // TODO: look up student email from DB then send
+}
+
+async function sendCourseCompletion(data: Partial<EmailJobData>): Promise<void> {
+  logger.info({ studentId: data.studentId }, '[email-worker] sending course completion email');
+  // TODO: implement
+}
+
+async function sendAssessmentPassed(data: Partial<EmailJobData>): Promise<void> {
+  logger.info({ studentId: data.studentId }, '[email-worker] sending assessment passed email');
+  // TODO: implement
+}
+
+// --- Job processor ---
+
 async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
   const { template, ...data } = job.data;
-
-  logger.info(`[EmailWorker] Processing job ${job.id} — template: ${template}`);
+  logger.info({ jobId: job.id, template }, '[email-worker] processing job');
 
   switch (template) {
     case 'welcome':
@@ -27,43 +45,23 @@ async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
       await sendAssessmentPassed(data);
       break;
     default:
-      logger.warn(`[EmailWorker] Unknown template: ${template}`);
+      logger.warn({ template }, '[email-worker] unknown template, skipping');
   }
 }
 
-// --- Placeholder senders (replace with nodemailer / Resend / SES) ---
+// --- Worker (started automatically when this file is imported) ---
 
-async function sendWelcomeEmail(data: Partial<EmailJobData>): Promise<void> {
-  logger.info('[EmailWorker] Sending welcome email', { to: data.email });
-  // TODO: implement with your email provider
-}
-
-async function sendEnrollmentConfirmation(data: Partial<EmailJobData>): Promise<void> {
-  logger.info('[EmailWorker] Sending enrollment confirmation', { studentId: data.studentId });
-  // TODO: look up student email from DB, then send
-}
-
-async function sendCourseCompletion(data: Partial<EmailJobData>): Promise<void> {
-  logger.info('[EmailWorker] Sending course completion email', { studentId: data.studentId });
-  // TODO: implement
-}
-
-async function sendAssessmentPassed(data: Partial<EmailJobData>): Promise<void> {
-  logger.info('[EmailWorker] Sending assessment passed email', { studentId: data.studentId });
-  // TODO: implement
-}
-
-// --- Worker instance ---
-
-export const emailWorker = new Worker<EmailJobData>('email', processEmailJob, {
+const emailWorker = new Worker<EmailJobData>('email', processEmailJob, {
   connection: redisConnection,
-  concurrency: 5, // process up to 5 jobs at the same time
+  concurrency: 5,
 });
 
 emailWorker.on('completed', (job) => {
-  logger.debug(`[EmailWorker] Job ${job.id} completed`);
+  logger.debug({ jobId: job.id }, '[email-worker] job completed');
 });
 
 emailWorker.on('failed', (job, err) => {
-  logger.error(`[EmailWorker] Job ${job?.id} failed`, { error: err.message });
+  logger.error({ jobId: job?.id, error: err.message }, '[email-worker] job failed');
 });
+
+export { emailWorker };

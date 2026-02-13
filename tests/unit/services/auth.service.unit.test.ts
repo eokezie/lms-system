@@ -1,32 +1,23 @@
 /**
- * Pure unit tests — no database, no MongoDB memory server.
- * The repository is mocked entirely, so these tests run instantly.
- *
- * Use this pattern when you want to test business logic in isolation
- * (e.g. "does the service throw the right error when repo returns null?")
- *
- * Use the integration tests (auth.service.test.ts with real DB) when you
- * want to test the full flow including actual DB writes.
+ * Pure unit tests — no database at all.
+ * We mock the repository functions directly, so these run instantly.
  */
-import { authService } from '@/modules/auth/auth.service';
-import { userRepository } from '@/modules/users/user.repository';
+import * as authService from '@/modules/auth/auth.service';
+import * as userRepository from '@/modules/users/user.repository';
 import { ApiError } from '@/utils/apiError';
 import { eventBus } from '@/events/eventBus';
 
-// Mock the entire repository module
 jest.mock('@/modules/users/user.repository');
 jest.mock('@/queues/email.queue', () => ({ emailQueue: { add: jest.fn() } }));
 
-const mockUserRepository = userRepository as jest.Mocked<typeof userRepository>;
+const mockedRepo = userRepository as jest.Mocked<typeof userRepository>;
 
-describe('AuthService (unit — mocked repository)', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+describe('authService (unit — mocked repository)', () => {
+  beforeEach(() => jest.clearAllMocks());
 
   describe('register()', () => {
     it('throws 409 when user already exists', async () => {
-      mockUserRepository.exists.mockResolvedValue(true);
+      mockedRepo.userExists.mockResolvedValue(true);
 
       await expect(
         authService.register({
@@ -37,19 +28,19 @@ describe('AuthService (unit — mocked repository)', () => {
         }),
       ).rejects.toThrow(new ApiError(409, 'An account with this email already exists'));
 
-      expect(mockUserRepository.create).not.toHaveBeenCalled();
+      expect(mockedRepo.createUser).not.toHaveBeenCalled();
     });
 
     it('emits user.registered event on success', async () => {
-      mockUserRepository.exists.mockResolvedValue(false);
-      mockUserRepository.create.mockResolvedValue({
+      mockedRepo.userExists.mockResolvedValue(false);
+      mockedRepo.createUser.mockResolvedValue({
         _id: { toString: () => 'user123' },
         email: 'barry@test.com',
         role: 'student',
         refreshTokens: [],
       } as any);
-      mockUserRepository.addRefreshToken.mockResolvedValue(null);
-      mockUserRepository.pruneRefreshTokens.mockResolvedValue(null);
+      mockedRepo.addRefreshToken.mockResolvedValue(null);
+      mockedRepo.pruneRefreshTokens.mockResolvedValue(null);
 
       const emitSpy = jest.spyOn(eventBus, 'emit');
 
@@ -69,7 +60,7 @@ describe('AuthService (unit — mocked repository)', () => {
 
   describe('login()', () => {
     it('throws 401 when user not found', async () => {
-      mockUserRepository.findByEmailWithPassword.mockResolvedValue(null);
+      mockedRepo.findUserByEmailWithPassword.mockResolvedValue(null);
 
       await expect(
         authService.login({ email: 'nobody@test.com', password: 'Password123' }),
@@ -77,7 +68,7 @@ describe('AuthService (unit — mocked repository)', () => {
     });
 
     it('throws 401 when password does not match', async () => {
-      mockUserRepository.findByEmailWithPassword.mockResolvedValue({
+      mockedRepo.findUserByEmailWithPassword.mockResolvedValue({
         comparePassword: jest.fn().mockResolvedValue(false),
         _id: { toString: () => 'user123' },
         email: 'barry@test.com',
@@ -85,7 +76,7 @@ describe('AuthService (unit — mocked repository)', () => {
       } as any);
 
       await expect(
-        authService.login({ email: 'barry@test.com', password: 'WrongPassword' }),
+        authService.login({ email: 'barry@test.com', password: 'Wrong' }),
       ).rejects.toThrow(new ApiError(401, 'Invalid email or password'));
     });
   });

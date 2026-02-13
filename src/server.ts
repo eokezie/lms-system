@@ -2,7 +2,7 @@ import './config/env'; // validate env first — fail fast before anything else
 import { connectDB } from './config/db';
 import { connectRedis } from './config/redis';
 import { logger } from './utils/logger';
-import { notificationService } from './modules/notifications/notification.service';
+import { registerNotificationListeners } from './modules/notifications/notification.service';
 import './queues/workers/email.worker'; // starts the worker automatically
 import app from './config/app';
 
@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
     await connectRedis();
 
     // 3. Register EventBus listeners (NotificationService listens to domain events)
-    notificationService.registerListeners();
+    registerNotificationListeners();
 
     // 4. Start Express
     const server = app.listen(PORT, () => {

@@ -1,5 +1,4 @@
 services:
-
   # --- API (Express + BullMQ workers running together for now) ---
   api:
     build:
@@ -7,6 +6,7 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
+    container_name: "api"
     env_file:
       - .env
     environment:
@@ -18,7 +18,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./src:/app/src  # hot reload via tsx watch
+      - ./src:/app/src # hot reload via tsx watch
       - ./logs:/app/logs
     restart: unless-stopped
 
@@ -42,11 +42,14 @@ services:
   # --- Redis (queue only — MongoDB is external) ---
   redis:
     image: redis:7-alpine
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes  # persist jobs to disk
+    # command: redis-server --appendonly yes # persist jobs to disk
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

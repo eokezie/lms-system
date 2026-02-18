@@ -17,3 +17,19 @@ export interface AuthTokens {
 	accessToken: string;
 	refreshToken: string;
 }
+
+export interface OtpDto {
+	userId: string;
+	otp: string;
+}
+
+export interface ForgotPasswordDto {
+	email: string;
+	otp: string;
+}
+
+export interface ChangePasswordDTO {
+	email: string;
+	newPassword: string;
+	newPasswordConfirmation: string;
+}

@@ -4,6 +4,15 @@ import bcrypt from "bcryptjs";
 export const USER_ROLES = ["student", "instructor", "admin"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+type TOtp = {
+	code: string;
+	expiresIn: Date;
+};
+
+interface IMeta {
+	otp: TOtp;
+}
+
 export interface IUser extends Document {
 	_id: mongoose.Types.ObjectId;
 	firstName: string;
@@ -14,6 +23,7 @@ export interface IUser extends Document {
 	avatar?: string;
 	bio?: string;
 	isEmailVerified: boolean;
+	meta?: IMeta;
 	refreshTokens: Array<{ token: string; createdAt: Date }>;
 	createdAt: Date;
 	updatedAt: Date;
@@ -49,6 +59,16 @@ const userSchema = new Schema<IUser>(
 				createdAt: { type: Date, default: Date.now },
 			},
 		],
+		meta: {
+			otp: {
+				code: {
+					type: String,
+				},
+				expiresIn: {
+					type: Date,
+				},
+			},
+		},
 	},
 	{
 		timestamps: true,

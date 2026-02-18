@@ -9,12 +9,29 @@ import {
 	removeRefreshToken,
 	clearAllRefreshTokens,
 	pruneRefreshTokens,
+	markEmailVerified,
+	updateUserPassword,
 } from "@/modules/users/user.repository";
 import { ApiError } from "@/utils/apiError";
 import { eventBus } from "@/events/eventBus";
 import { env } from "@/config/env";
 import { JwtPayload } from "@/middleware/auth.middleware";
-import { RegisterDto, LoginDto, AuthTokens } from "./auth.types";
+import {
+	RegisterDto,
+	LoginDto,
+	AuthTokens,
+	OtpDto,
+	ForgotPasswordDto,
+	ChangePasswordDTO,
+} from "./auth.types";
+import { redisConnection } from "@/config/redis";
+import { createEmailQueue } from "@/queues/email.queue";
+import { generateOTP, saveOTP, verifyOTP } from "./otp.service";
+import { logger } from "@/utils/logger";
+import { getVerificationCodeExpiryDate } from "@/helpers/verificationCode";
+import bcrypt from "bcryptjs";
+
+const emailQueue = createEmailQueue(redisConnection);
 
 function generateTokens(user: IUser): AuthTokens {
 	const payload: any = {
@@ -59,15 +76,31 @@ export async function register(
 		role: dto.role || USER_ROLES[0],
 	});
 
+	// 2. Generate OTP
+	const otp = generateOTP();
+
+	// 3. Save OTP to Redis (expires in 10 mins)
+	await saveOTP(user._id.toString(), otp);
+
+	// 4. Queue email job
 	const tokens = generateTokens(user);
-	await addRefreshToken(user._id.toString(), tokens.refreshToken);
-	await pruneRefreshTokens(user._id.toString());
+	await Promise.all([
+		await emailQueue.add("send-otp", {
+			template: "otp",
+			email: user.email,
+			name: user.firstName,
+			otp,
+		}),
+		await addRefreshToken(user._id.toString(), tokens.refreshToken),
+		await pruneRefreshTokens(user._id.toString()),
+	]);
 
 	eventBus.emit("user.registered", {
 		userId: user._id.toString(),
 		email: user.email,
 	});
 
+	logger.info({ userId: user._id }, "User registered, OTP queued");
 	return { user, tokens };
 }
 
@@ -130,4 +163,65 @@ export async function logout(
 
 export async function logoutAll(userId: string): Promise<void> {
 	await clearAllRefreshTokens(userId);
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+	const user = await findUserByEmailWithPassword(email);
+	if (!user) throw ApiError.unauthorized("Invalid email provided!");
+
+	const code = "0000";
+
+	if (user.meta) {
+		user.meta.otp.code = code;
+		user.meta.otp.expiresIn = getVerificationCodeExpiryDate();
+	}
+
+	await user.save();
+}
+
+export async function verifyEmail(dto: OtpDto): Promise<void> {
+	const { userId, otp } = dto;
+	const isValid = await verifyOTP(userId, otp);
+	if (!isValid) throw ApiError.badRequest("Invalid or expired OTP!");
+
+	await markEmailVerified(userId);
+}
+
+export async function verifyVerificationCode(
+	dto: ForgotPasswordDto,
+): Promise<void> {
+	const { email, otp } = dto;
+
+	const user = await findUserByEmailWithPassword(email);
+	if (!user) throw ApiError.unauthorized("Invalid email provided!");
+
+	if (user.meta && user.meta.otp && user.meta.otp.code !== otp) {
+		throw ApiError.badRequest("Invalid OTP!");
+	}
+
+	const currentDateInMilliseconds = new Date().getTime();
+	const offset = new Date().getTimezoneOffset() * 60 * 1000;
+
+	const currentDateInMillisecondsWithoutOffset =
+		currentDateInMilliseconds - offset;
+
+	if (
+		user.meta &&
+		user.meta.otp &&
+		new Date(currentDateInMillisecondsWithoutOffset).toISOString() >
+			new Date(user.meta.otp.expiresIn).toISOString()
+	) {
+		throw ApiError.badRequest("The OTP provided has expired!");
+	}
+}
+
+export async function changePassword(dto: ChangePasswordDTO): Promise<void> {
+	if (dto.newPassword !== dto.newPasswordConfirmation)
+		throw ApiError.unauthorized("New Password fields do not match!");
+
+	const user = await findUserByEmailWithPassword(dto.email);
+	if (!user) throw ApiError.unauthorized("Invalid email provided");
+
+	const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+	await updateUserPassword(user.id, passwordHash);
 }

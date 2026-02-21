@@ -41,8 +41,8 @@ export const verifyCodeSchema = z.object({
   email: z.string().email().toLowerCase(),
   otp: z
     .string()
-    .min(4, "OTP should be 4 digits")
-    .max(4, "OTP should be 4 digits"),
+    .min(6, "OTP should be 6 digits")
+    .max(6, "OTP should be 6 digits"),
 });
 
 export const changePasswordSchema = z.object({

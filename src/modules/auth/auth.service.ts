@@ -169,7 +169,7 @@ export async function forgotPassword(email: string): Promise<void> {
   const user = await findUserByEmailWithPassword(email);
   if (!user) throw ApiError.unauthorized("Invalid email provided!");
 
-  const code = "0000";
+  const code = "000000";
 
   if (user.meta) {
     user.meta.otp.code = code;

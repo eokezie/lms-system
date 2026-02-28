@@ -4,3 +4,8 @@ logs/
 coverage/
 .env
 *.env.local
+
+# Package manager
+package-lock.json
+*.lock
+pnpm-lock.yaml

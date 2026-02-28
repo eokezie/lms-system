@@ -40,6 +40,7 @@ export const changePassword = catchAsync(
 
 export const userOnboardingHandler = catchAsync(
 	async (req: Request, res: Response) => {
+		req.body.hasOnboarded = true;
 		const user = await updateUserForOnboarding(req.user!.userId, req.body);
 		sendSuccess({ res, message: "Onboarding info recorded", data: { user } });
 	},

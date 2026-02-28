@@ -19,6 +19,7 @@ import {
   pruneRefreshTokens,
   markEmailVerified,
   updateUserPassword,
+  findUserById,
 } from "@/modules/users/user.repository";
 import {
   RegisterDto,
@@ -101,7 +102,6 @@ export async function register(
 
   // 4. Send welcome + OTP emails via Resend (fire-and-forget; don't fail registration)
   Promise.all([
-    sendWelcomeEmail({ email: user.email, firstName: user.firstName }),
     sendOtpEmail({
       email: user.email,
       firstName: user.firstName,
@@ -207,10 +207,15 @@ export async function forgotPassword(email: string): Promise<void> {
 
 export async function verifyEmail(dto: OtpDto): Promise<void> {
   const { userId, otp } = dto;
+
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.unauthorized("User not found!");
+
   const isValid = await verifyOTP(userId, otp);
   if (!isValid) throw ApiError.badRequest("Invalid or expired OTP!");
 
   await markEmailVerified(userId);
+  await sendWelcomeEmail({ email: user.email, firstName: user.firstName });
 }
 
 export async function verifyVerificationCode(

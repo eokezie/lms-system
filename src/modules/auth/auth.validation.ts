@@ -26,8 +26,8 @@ export const refreshTokenSchema = z.object({
 export const otpSchema = z.object({
   otp: z
     .string()
-    .min(4, "OTP should be 4 digits")
-    .max(4, "OTP should be 4 digits"),
+    .min(6, "OTP should be 4 digits")
+    .max(6, "OTP should be 4 digits"),
 });
 
 export type RegisterDto = z.infer<typeof registerSchema>;

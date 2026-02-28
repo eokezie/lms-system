@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '@/config/env';
-import { ApiError } from '@/utils/apiError';
-import { UserRole } from '@/modules/users/user.model';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { env } from "@/config/env";
+import { ApiError } from "@/utils/apiError";
+import { UserRole } from "@/modules/users/user.model";
 
 export interface JwtPayload {
   userId: string;
@@ -19,14 +19,18 @@ declare global {
   }
 }
 
-export function authenticate(req: Request, _res: Response, next: NextFunction): void {
+export function authenticate(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return next(ApiError.unauthorized('No token provided'));
+  if (!authHeader?.startsWith("Bearer ")) {
+    return next(ApiError.unauthorized("No token provided"));
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
@@ -50,7 +54,9 @@ export function authorize(...roles: UserRole[]) {
     }
 
     if (!roles.includes(req.user.role)) {
-      return next(ApiError.forbidden('You do not have permission to perform this action'));
+      return next(
+        ApiError.forbidden("You do not have permission to perform this action"),
+      );
     }
 
     next();

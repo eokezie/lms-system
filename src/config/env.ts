@@ -38,6 +38,11 @@ const envSchema = z.object({
 	// Rate limiting
 	RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
 	RATE_LIMIT_MAX: z.coerce.number().default(100),
+
+	// Mux
+	MUX_TOKEN_ID: z.string(),
+	MUX_TOKEN_SECRET: z.string(),
+	MUX_SIGNING_SECRET: z.string(),
 });
 
 const parsed = envSchema.safeParse(process.env);

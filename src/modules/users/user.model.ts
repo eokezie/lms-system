@@ -13,6 +13,31 @@ interface IMeta {
 	otp: TOtp;
 }
 
+interface IPreferences {
+	description: string;
+	interestedField: string;
+	achievementGoal: string;
+	daysPerWeekCommittedToLearning: number;
+	discovery: string;
+}
+
+export interface IInstructorProfile {
+	payoutEmail?: string;
+	bio?: string;
+	socialLinks?: {
+		twitter?: string;
+		linkedin?: string;
+		website?: string;
+	};
+	totalRevenue: number;
+	totalStudents: number;
+}
+
+export interface IStudyGoal {
+	daysPerWeek: number;
+	preferredDays: ("Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat")[];
+}
+
 export interface IUser extends Document {
 	_id: mongoose.Types.ObjectId;
 	firstName: string;
@@ -25,6 +50,11 @@ export interface IUser extends Document {
 	isEmailVerified: boolean;
 	meta?: IMeta;
 	refreshTokens: Array<{ token: string; createdAt: Date }>;
+	preferences: IPreferences;
+	// Study goal — used for weekly progress tracker
+	studyGoal: IStudyGoal;
+	// Instructor-only extended profile
+	instructorProfile?: IInstructorProfile;
 	createdAt: Date;
 	updatedAt: Date;
 	// Instance methods
@@ -59,6 +89,44 @@ const userSchema = new Schema<IUser>(
 				createdAt: { type: Date, default: Date.now },
 			},
 		],
+		preferences: {
+			description: {
+				type: String,
+			},
+			interestedField: {
+				type: String,
+			},
+			achievementGoal: {
+				type: String,
+			},
+			daysPerWeekCommittedToLearning: {
+				type: Number,
+			},
+			discovery: {
+				type: String,
+			},
+		},
+		// Weekly study goal
+		studyGoal: {
+			daysPerWeek: { type: Number, default: 3, min: 1, max: 7 },
+			preferredDays: {
+				type: [String],
+				enum: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+				default: ["Mon", "Wed", "Fri"],
+			},
+		},
+		// Only populated when role === 'instructor'
+		instructorProfile: {
+			payoutEmail: { type: String },
+			bio: { type: String, maxlength: 1000 },
+			socialLinks: {
+				twitter: { type: String },
+				linkedin: { type: String },
+				website: { type: String },
+			},
+			totalRevenue: { type: Number, default: 0 },
+			totalStudents: { type: Number, default: 0 },
+		},
 		meta: {
 			otp: {
 				code: {

@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mux/mux-node": "^12.8.1",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.4.2",
     "cors": "^2.8.5",

@@ -1,16 +1,31 @@
 FROM node:20-alpine
 
-WORKDIR /app
+# WORKDIR /app
 
-# Install dependencies first (cached layer — only rebuilds if package.json changes)
-COPY package*.json ./
+# # Install dependencies first (cached layer — only rebuilds if package.json changes)
+# COPY package*.json ./
+# COPY tsconfig.json ./
+# RUN npm install \
+# && npm run build
+
+# # Copy source (overridden by volume mount in dev)
+# COPY . .
+
+# EXPOSE 5000
+WORKDIR /usr/src/app
+COPY package.json ./
 COPY tsconfig.json ./
-RUN npm install \
+COPY src ./src
+RUN ls -a \
+&& npm install \
 && npm run build
 
-# Copy source (overridden by volume mount in dev)
-COPY . .
-
-EXPOSE 5000
+## this is stage 2, where the app actually runs
+# FROM node:14.20.1-alpine
+FROM node:20-alpine
+WORKDIR /usr/src/app
+COPY package.json ./
+RUN npm install --only=production
+COPY --from=0 /usr/src/app/dist ./
 
 CMD ["npm", "run", "start"]

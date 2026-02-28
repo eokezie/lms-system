@@ -48,6 +48,8 @@ export interface IUser extends Document {
 	avatar?: string;
 	bio?: string;
 	isEmailVerified: boolean;
+	googleId?: string; // set when user signs in with Google
+	facebookId?: string; // set when user signs in with Facebook
 	meta?: IMeta;
 	refreshTokens: Array<{ token: string; createdAt: Date }>;
 	preferences: IPreferences;
@@ -75,6 +77,8 @@ const userSchema = new Schema<IUser>(
 			index: true,
 		},
 		passwordHash: { type: String, required: true, select: false }, // never returned by default
+		googleId: { type: String, sparse: true, unique: true },
+		facebookId: { type: String, sparse: true, unique: true },
 		role: {
 			type: String,
 			enum: ["student", "instructor", "admin"],
@@ -151,9 +155,9 @@ const userSchema = new Schema<IUser>(
 	},
 );
 
-// Hash password before saving if it was modified
+// Hash password before saving if it was modified (only when present)
 userSchema.pre("save", async function (next) {
-	if (!this.isModified("passwordHash")) return next();
+	if (!this.isModified("passwordHash") || !this.passwordHash) return next();
 	this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
 	next();
 });
@@ -161,6 +165,7 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (
 	password: string,
 ): Promise<boolean> {
+	if (!this.passwordHash) return false;
 	return bcrypt.compare(password, this.passwordHash);
 };
 

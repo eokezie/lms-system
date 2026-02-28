@@ -1,4 +1,4 @@
-import { UserRole } from './user.model';
+import { UserRole } from "./user.model";
 
 export interface CreateUserDto {
   firstName: string;
@@ -6,6 +6,33 @@ export interface CreateUserDto {
   email: string;
   password: string;
   role?: UserRole;
+}
+
+export interface CreateUserFromOAuthDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role?: UserRole;
+  avatar?: string;
+  googleId?: string;
+  facebookId?: string;
+  isEmailVerified?: boolean;
+}
+
+export interface GoogleProfile {
+  id: string;
+  displayName?: string;
+  name?: { givenName?: string; familyName?: string };
+  emails?: Array<{ value: string; verified?: boolean }>;
+  photos?: Array<{ value: string }>;
+}
+
+export interface FacebookProfile {
+  id: string;
+  displayName?: string;
+  name?: { givenName?: string; familyName?: string };
+  emails?: Array<{ value: string }>;
+  photos?: Array<{ value: string }>;
 }
 
 export interface UpdateUserDto {

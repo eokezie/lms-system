@@ -3,21 +3,38 @@ import { redisConnection } from "@/config/redis";
 import { logger } from "@/utils/logger";
 
 export interface EmailJobData {
-	template:
-		| "welcome"
-		| "otp"
-		| "enrollment-confirmation"
-		| "course-completion"
-		| "assessment-passed";
-	to?: string;
-	email?: string;
-	studentId?: string;
-	userId?: string;
-	courseId?: string;
-	assessmentId?: string;
-	otp?: string;
-	name?: string;
-	[key: string]: unknown;
+  template:
+    | "welcome"
+    | "otp"
+    | "email-verification"
+    | "forgot-password"
+    | "password-changed"
+    | "enrollment-confirmation"
+    | "payment-confirmation"
+    | "inactivity"
+    | "course-completion"
+    | "assessment-passed";
+  email?: string;
+  name?: string;
+  firstName?: string;
+  otp?: string;
+  loginLink?: string;
+  verificationLink?: string;
+  verificationCode?: string;
+  resetLink?: string;
+  recoveryCode?: string;
+  timeLimit?: string;
+  courseName?: string;
+  courseLink?: string;
+  amount?: string;
+  transactionId?: string;
+  paymentDate?: string;
+  dashboardLink?: string;
+  studentId?: string;
+  userId?: string;
+  courseId?: string;
+  assessmentId?: string;
+  [key: string]: unknown;
 }
 // export const emailQueue = new Queue<EmailJobData>("email", {
 // 	// @ts-ignore
@@ -34,19 +51,19 @@ export interface EmailJobData {
 // });
 
 export function createEmailQueue(redisConnection: any): Queue<EmailJobData> {
-	const emailQueue = new Queue<EmailJobData>("email", {
-		connection: redisConnection,
-		defaultJobOptions: {
-			attempts: 3,
-			backoff: {
-				type: "exponential",
-				delay: 2000,
-			},
-			removeOnComplete: 100, // Keep last 100 completed jobs
-			removeOnFail: 50, // Keep last 50 failed jobs
-		},
-	});
+  const emailQueue = new Queue<EmailJobData>("email", {
+    connection: redisConnection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
+      },
+      removeOnComplete: 100, // Keep last 100 completed jobs
+      removeOnFail: 50, // Keep last 50 failed jobs
+    },
+  });
 
-	logger.info("[email-queue] initialized");
-	return emailQueue;
+  logger.info("[email-queue] initialized");
+  return emailQueue;
 }

@@ -1,0 +1,15 @@
+export { otpEmailTemplate } from "./otp.template";
+export { welcomeEmailTemplate } from "./welcome.template";
+export type { WelcomeTemplateData } from "./welcome.template";
+export { emailVerificationTemplate } from "./email-verification.template";
+export type { EmailVerificationTemplateData } from "./email-verification.template";
+export { forgotPasswordTemplate } from "./forgot-password.template";
+export type { ForgotPasswordTemplateData } from "./forgot-password.template";
+export { passwordChangedTemplate } from "./password-changed.template";
+export type { PasswordChangedTemplateData } from "./password-changed.template";
+export { enrollmentConfirmationTemplate } from "./enrollment-confirmation.template";
+export type { EnrollmentConfirmationTemplateData } from "./enrollment-confirmation.template";
+export { paymentConfirmationTemplate } from "./payment-confirmation.template";
+export type { PaymentConfirmationTemplateData } from "./payment-confirmation.template";
+export { inactivityTemplate } from "./inactivity.template";
+export type { InactivityTemplateData } from "./inactivity.template";

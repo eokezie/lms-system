@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
-    container_name: "api"
+    container_name: "lms-api"
     env_file:
       - .env
     environment:

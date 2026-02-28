@@ -4,6 +4,7 @@ import {
 	updateUserProfile,
 	changeUserPassword,
 	createUserService,
+	updateUserForOnboarding,
 } from "./user.service";
 import { catchAsync } from "@/utils/catchAsync";
 import { sendCreated, sendSuccess } from "@/utils/apiResponse";
@@ -34,5 +35,12 @@ export const changePassword = catchAsync(
 		const { currentPassword, newPassword } = req.body;
 		await changeUserPassword(req.user!.userId, currentPassword, newPassword);
 		sendSuccess({ res, message: "Password changed successfully" });
+	},
+);
+
+export const userOnboardingHandler = catchAsync(
+	async (req: Request, res: Response) => {
+		const user = await updateUserForOnboarding(req.user!.userId, req.body);
+		sendSuccess({ res, message: "Onboarding info recorded", data: { user } });
 	},
 );

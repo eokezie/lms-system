@@ -26,6 +26,7 @@ router.post(
 );
 router.get("/me", getMe);
 router.patch("/me", validate(updateProfileSchema), updateMe);
+router.patch("/onboarding", updateMe);
 router.patch("/me/password", validate(changePasswordSchema), changePassword);
 
 export default router;

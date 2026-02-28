@@ -1,8 +1,14 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type CourseStatus = "draft" | "published" | "archived";
+export type ICourseStatus = "draft" | "published" | "archived";
 
-export interface ICourseSection {
+export enum CourseStatus {
+	draft = "draft",
+	published = "published",
+	archived = "archived",
+}
+
+export interface ICourseModule {
 	sectionTitle: string;
 	lessons: mongoose.Types.ObjectId[];
 }
@@ -14,12 +20,12 @@ export interface ICourse extends Document {
 	description: string;
 	coverImage?: string;
 	instructor: mongoose.Types.ObjectId;
-	category: string;
+	category: mongoose.Types.ObjectId;
 	tags: string[];
-	status: CourseStatus;
+	status: ICourseStatus;
 	price: number;
 	isFree: boolean;
-	curriculum: ICourseSection[];
+	courseModule: ICourseModule[];
 	enrollmentCount: number;
 	averageRating: number;
 	totalRatings: number;
@@ -31,7 +37,7 @@ export interface ICourse extends Document {
 	updatedAt: Date;
 }
 
-const courseSectionSchema = new Schema<ICourseSection>(
+const courseModuleSchema = new Schema<ICourseModule>(
 	{
 		sectionTitle: { type: String, required: true },
 		lessons: [{ type: Schema.Types.ObjectId, ref: "Lesson" }],
@@ -57,17 +63,17 @@ const courseSchema = new Schema<ICourse>(
 			required: true,
 			index: true,
 		},
-		category: { type: String, required: true },
+		category: { type: Schema.Types.ObjectId, ref: "Category" },
 		tags: [{ type: String }],
 		status: {
 			type: String,
-			enum: ["draft", "published", "archived"],
-			default: "draft",
+			enum: CourseStatus,
+			default: CourseStatus.draft,
 			index: true,
 		},
 		price: { type: Number, default: 0, min: 0 },
 		isFree: { type: Boolean, default: true },
-		curriculum: [courseSectionSchema],
+		courseModule: [courseModuleSchema],
 		enrollmentCount: { type: Number, default: 0, min: 0 },
 		averageRating: { type: Number, default: 0, min: 0, max: 5 },
 		totalRatings: { type: Number, default: 0 },

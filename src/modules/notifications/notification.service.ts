@@ -38,18 +38,11 @@ async function onCourseCompleted({
   );
 }
 
-async function onUserRegistered({
-  userId,
-  email,
-}: {
-  userId: string;
-  email: string;
-}) {
-  logger.debug({ userId, email }, "[notifications] user.registered");
-  await emailQueue.add(
-    "welcome-email",
-    { userId, email, template: "welcome" },
-    { attempts: 3 },
+// Welcome + OTP emails are sent via Resend in auth.service (register), not the queue.
+async function onUserRegistered(_payload: { userId: string; email: string }) {
+  logger.debug(
+    _payload,
+    "[notifications] user.registered (emails sent by auth-email.service)",
   );
 }
 

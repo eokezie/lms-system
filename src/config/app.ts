@@ -3,10 +3,12 @@ import helmet from "helmet";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import rateLimit from "express-rate-limit";
+
 import { env } from "@/config/env";
 import { logger } from "@/utils/logger";
 import { errorMiddleware } from "@/middleware/error.middleware";
 import authRoutes from "@/modules/auth/auth.routes";
+import passport from "@/modules/auth/passport.strategies";
 
 // Uncomment as you build each module
 // import courseRoutes from '@/modules/courses/course.routes';
@@ -46,6 +48,9 @@ app.use(
 // --- Body parsing ---
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// --- Passport (for OAuth) ---
+app.use(passport.initialize());
 
 // --- HTTP request logging via pino-http ---
 // Outputs structured JSON in production, pretty-printed in dev

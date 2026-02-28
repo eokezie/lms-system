@@ -2,7 +2,16 @@ import { Worker, Job } from "bullmq";
 import { redisConnection } from "@/config/redis";
 import { EmailJobData } from "@/queues/email.queue";
 import { logger } from "@/utils/logger";
-import { otpEmailTemplate } from "@/queues/emails/templates/otp.template";
+import {
+  otpEmailTemplate,
+  welcomeEmailTemplate,
+  emailVerificationTemplate,
+  forgotPasswordTemplate,
+  passwordChangedTemplate,
+  enrollmentConfirmationTemplate,
+  paymentConfirmationTemplate,
+  inactivityTemplate,
+} from "@/queues/emails/templates";
 import { env } from "@/config/env";
 
 // async function sendWelcomeEmail(data: Partial<EmailJobData>): Promise<void> {
@@ -49,7 +58,7 @@ async function sendEmail(
   const transporter = (await import("@/config/mailer")).default;
 
   await transporter.sendMail({
-    from: `"Infinix Techcloud" <${env.EMAIL_FROM}>`,
+    from: `"Infinix Tech" <${env.EMAIL_FROM}>`,
     to,
     subject,
     html,
@@ -82,24 +91,92 @@ async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
     case "welcome":
       await sendEmail(
         data.email!,
-        "Welcome to LMS Platform!",
-        `<p>Welcome ${data.name}!</p>`, // Replace with proper template
+        "Welcome to Infinix Tech",
+        welcomeEmailTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+          loginLink: data.loginLink ?? "#",
+        }),
       );
       break;
 
     case "otp":
       await sendEmail(
         data.email!,
-        "Your OTP Verification Code",
-        otpEmailTemplate(data.otp!, data.name!),
+        "Your verification code – Infinix Tech",
+        otpEmailTemplate(data.otp!, data.name ?? data.firstName ?? "there"),
+      );
+      break;
+
+    case "email-verification":
+      await sendEmail(
+        data.email!,
+        "Confirm Email Address – Infinix Tech",
+        emailVerificationTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+          verificationCode: data.otp ?? data.verificationCode,
+          verificationLink: data.verificationLink ?? "#",
+        }),
+      );
+      break;
+
+    case "forgot-password":
+      await sendEmail(
+        data.email!,
+        "Forgot Password – Infinix Tech",
+        forgotPasswordTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+          recoveryCode: data.otp ?? data.recoveryCode,
+          resetLink: data.resetLink ?? "#",
+          timeLimit: data.timeLimit ?? "1 hour",
+        }),
+      );
+      break;
+
+    case "password-changed":
+      await sendEmail(
+        data.email!,
+        "Your password was updated – Infinix Tech",
+        passwordChangedTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+        }),
       );
       break;
 
     case "enrollment-confirmation":
       await sendEmail(
         data.email!,
-        "Enrollment Confirmed!",
-        `<p>You have successfully enrolled in ${data.courseName}</p>`, // Replace with proper template
+        "Course Enrollment Confirmation – Infinix Tech",
+        enrollmentConfirmationTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+          courseName: data.courseName ?? "your course",
+          courseLink: data.courseLink ?? "#",
+        }),
+      );
+      break;
+
+    case "payment-confirmation":
+      await sendEmail(
+        data.email!,
+        "Payment Confirmation – Infinix Tech",
+        paymentConfirmationTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+          courseName: data.courseName ?? "your course",
+          amount: data.amount ?? "—",
+          transactionId: data.transactionId ?? "—",
+          paymentDate: data.paymentDate ?? "—",
+          courseLink: data.courseLink ?? "#",
+        }),
+      );
+      break;
+
+    case "inactivity":
+      await sendEmail(
+        data.email!,
+        "We miss you – Infinix Tech",
+        inactivityTemplate({
+          firstName: data.firstName ?? data.name ?? "there",
+          dashboardLink: data.dashboardLink ?? data.loginLink ?? "#",
+        }),
       );
       break;
 

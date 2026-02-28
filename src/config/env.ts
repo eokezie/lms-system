@@ -38,6 +38,19 @@ const envSchema = z.object({
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
+
+  // OAuth
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  FACEBOOK_APP_ID: z.string().optional(),
+  FACEBOOK_APP_SECRET: z.string().optional(),
+
+  BACKEND_BASE_URL: z.string().url().optional(),
+  FRONTEND_OAUTH_REDIRECT_URI: z.string().url().optional(),
+
+  // Resend
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_MAILER_SENDER: z.string().email().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,6 +1,10 @@
 import { FilterQuery } from "mongoose";
 import { User, IUser } from "./user.model";
-import { CreateUserDto, UpdateUserDto } from "./user.types";
+import {
+  CreateUserDto,
+  CreateUserFromOAuthDto,
+  UpdateUserDto,
+} from "./user.types";
 
 export function findUserById(id: string): Promise<IUser | null> {
   return User.findById(id).exec();
@@ -38,6 +42,53 @@ export function createUser(data: CreateUserDto): Promise<IUser> {
     passwordHash: data.password,
     role: data.role ?? "student",
   });
+}
+
+export function findUserByGoogleId(googleId: string): Promise<IUser | null> {
+  return User.findOne({ googleId }).exec();
+}
+
+export function findUserByFacebookId(
+  facebookId: string,
+): Promise<IUser | null> {
+  return User.findOne({ facebookId }).exec();
+}
+
+export function createUserFromOAuth(
+  data: CreateUserFromOAuthDto,
+): Promise<IUser> {
+  return User.create({
+    firstName: data.firstName,
+    lastName: data.lastName,
+    email: data.email.toLowerCase(),
+    role: data.role ?? "student",
+    avatar: data.avatar,
+    googleId: data.googleId,
+    facebookId: data.facebookId,
+    isEmailVerified: data.isEmailVerified ?? true,
+  });
+}
+
+export function linkGoogleId(
+  userId: string,
+  googleId: string,
+): Promise<IUser | null> {
+  return User.findByIdAndUpdate(
+    userId,
+    { $set: { googleId, isEmailVerified: true } },
+    { new: true },
+  ).exec();
+}
+
+export function linkFacebookId(
+  userId: string,
+  facebookId: string,
+): Promise<IUser | null> {
+  return User.findByIdAndUpdate(
+    userId,
+    { $set: { facebookId, isEmailVerified: true } },
+    { new: true },
+  ).exec();
 }
 
 export function updateUserById(

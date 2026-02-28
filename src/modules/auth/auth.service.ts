@@ -1,10 +1,18 @@
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
 import { IUser, USER_ROLES } from "@/modules/users/user.model";
 import {
   userExists,
   createUser,
+  findUserByEmail,
   findUserByEmailWithPassword,
   findUserByIdWithRefreshTokens,
+  findUserByGoogleId,
+  findUserByFacebookId,
+  createUserFromOAuth,
+  linkGoogleId,
+  linkFacebookId,
   addRefreshToken,
   removeRefreshToken,
   clearAllRefreshTokens,
@@ -12,10 +20,6 @@ import {
   markEmailVerified,
   updateUserPassword,
 } from "@/modules/users/user.repository";
-import { ApiError } from "@/utils/apiError";
-import { eventBus } from "@/events/eventBus";
-import { env } from "@/config/env";
-import { JwtPayload } from "@/middleware/auth.middleware";
 import {
   RegisterDto,
   LoginDto,
@@ -24,14 +28,22 @@ import {
   ForgotPasswordDto,
   ChangePasswordDTO,
 } from "./auth.types";
-import { redisConnection } from "@/config/redis";
-import { createEmailQueue } from "@/queues/email.queue";
+import { ApiError } from "@/utils/apiError";
+import { eventBus } from "@/events/eventBus";
+import { env } from "@/config/env";
+import { JwtPayload } from "@/middleware/auth.middleware";
 import { generateOTP, saveOTP, verifyOTP } from "./otp.service";
 import { logger } from "@/utils/logger";
 import { getVerificationCodeExpiryDate } from "@/helpers/verificationCode";
-import bcrypt from "bcryptjs";
-
-const emailQueue = createEmailQueue(redisConnection);
+import {
+  sendWelcomeEmail,
+  sendOtpEmail,
+  sendForgotPasswordOtpEmail,
+  sendPasswordChangedEmail,
+} from "./auth-email.service";
+import { FacebookProfile, GoogleProfile } from "../users/user.types";
+import { redisConnection } from "@/config/redis";
+import { createEmailQueue } from "@/queues/email.queue";
 
 function generateTokens(user: IUser): AuthTokens {
   const payload: any = {
@@ -76,31 +88,35 @@ export async function register(
     role: dto.role || USER_ROLES[0],
   });
 
-  // 2. Generate OTP
+  // 2. Generate OTP and save to Redis (expires in 10 mins)
   const otp = generateOTP();
-
-  // 3. Save OTP to Redis (expires in 10 mins)
   await saveOTP(user._id.toString(), otp);
 
-  // 4. Queue email job
+  // 3. Issue tokens and persist
   const tokens = generateTokens(user);
   await Promise.all([
-    await emailQueue.add("send-otp", {
-      template: "otp",
+    addRefreshToken(user._id.toString(), tokens.refreshToken),
+    pruneRefreshTokens(user._id.toString()),
+  ]);
+
+  // 4. Send welcome + OTP emails via Resend (fire-and-forget; don't fail registration)
+  Promise.all([
+    sendWelcomeEmail({ email: user.email, firstName: user.firstName }),
+    sendOtpEmail({
       email: user.email,
-      name: user.firstName,
+      firstName: user.firstName,
       otp,
     }),
-    await addRefreshToken(user._id.toString(), tokens.refreshToken),
-    await pruneRefreshTokens(user._id.toString()),
-  ]);
+  ]).catch((err) => {
+    logger.error({ err, userId: user._id }, "Auth emails failed to send");
+  });
 
   eventBus.emit("user.registered", {
     userId: user._id.toString(),
     email: user.email,
   });
 
-  logger.info({ userId: user._id }, "User registered, OTP queued");
+  logger.info({ userId: user._id }, "User registered, auth emails sent");
   return { user, tokens };
 }
 
@@ -169,14 +185,24 @@ export async function forgotPassword(email: string): Promise<void> {
   const user = await findUserByEmailWithPassword(email);
   if (!user) throw ApiError.unauthorized("Invalid email provided!");
 
-  const code = "000000";
+  const code = generateOTP();
+  const expiresIn = getVerificationCodeExpiryDate();
 
-  if (user.meta) {
-    user.meta.otp.code = code;
-    user.meta.otp.expiresIn = getVerificationCodeExpiryDate();
-  }
+  if (!user.meta) user.meta = { otp: { code: "", expiresIn: new Date(0) } };
+  user.meta.otp = { code, expiresIn };
 
   await user.save();
+
+  sendForgotPasswordOtpEmail({
+    email: user.email,
+    firstName: user.firstName,
+    otp: code,
+  }).catch((err) => {
+    logger.error(
+      { err, email: user.email },
+      "Forgot password email failed to send",
+    );
+  });
 }
 
 export async function verifyEmail(dto: OtpDto): Promise<void> {
@@ -224,4 +250,91 @@ export async function changePassword(dto: ChangePasswordDTO): Promise<void> {
 
   const passwordHash = await bcrypt.hash(dto.newPassword, 12);
   await updateUserPassword(user.id, passwordHash);
+
+  sendPasswordChangedEmail({
+    email: user.email,
+    firstName: user.firstName,
+  }).catch((err) => {
+    logger.error(
+      { err, email: user.email },
+      "Password changed email failed to send",
+    );
+  });
+}
+
+export async function findOrCreateUserFromGoogle(
+  profile: GoogleProfile,
+): Promise<IUser> {
+  const googleId = profile.id;
+  const email =
+    profile.emails?.[0]?.value?.toLowerCase()?.trim() ||
+    `${googleId}@google.oauth.local`;
+  const firstName =
+    profile.name?.givenName || profile.displayName?.split(" ")[0] || "User";
+  const lastName =
+    profile.name?.familyName ||
+    profile.displayName?.split(" ").slice(1).join(" ") ||
+    "OAuth";
+  const avatar = profile.photos?.[0]?.value;
+
+  let user = await findUserByGoogleId(googleId);
+  if (user) return user;
+
+  user = await findUserByEmail(email);
+  if (user) {
+    await linkGoogleId(user._id.toString(), googleId);
+    return (await findUserByGoogleId(googleId))!;
+  }
+
+  return createUserFromOAuth({
+    firstName,
+    lastName,
+    email,
+    googleId,
+    avatar,
+    isEmailVerified: true,
+  });
+}
+
+export async function findOrCreateUserFromFacebook(
+  profile: FacebookProfile,
+): Promise<IUser> {
+  const facebookId = profile.id;
+  const email =
+    profile.emails?.[0]?.value?.toLowerCase()?.trim() ||
+    `${facebookId}@facebook.oauth.local`;
+  const firstName =
+    profile.name?.givenName || profile.displayName?.split(" ")[0] || "User";
+  const lastName =
+    profile.name?.familyName ||
+    profile.displayName?.split(" ").slice(1).join(" ") ||
+    "OAuth";
+  const avatar = profile.photos?.[0]?.value;
+
+  let user = await findUserByFacebookId(facebookId);
+  if (user) return user;
+
+  user = await findUserByEmail(email);
+  if (user) {
+    await linkFacebookId(user._id.toString(), facebookId);
+    return (await findUserByFacebookId(facebookId))!;
+  }
+
+  return createUserFromOAuth({
+    firstName,
+    lastName,
+    email,
+    facebookId,
+    avatar,
+    isEmailVerified: true,
+  });
+}
+
+export async function issueTokensForUser(
+  user: IUser,
+): Promise<{ user: IUser; tokens: AuthTokens }> {
+  const tokens = generateTokens(user);
+  await addRefreshToken(user._id.toString(), tokens.refreshToken);
+  await pruneRefreshTokens(user._id.toString());
+  return { user, tokens };
 }

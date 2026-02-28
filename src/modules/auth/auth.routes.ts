@@ -21,6 +21,9 @@ import {
   verifyCodeSchema,
   changePasswordSchema,
 } from "./auth.validation";
+import { env } from "@/config/env";
+import passport from "./passport.strategies";
+import { createOAuthCallback } from "./oauth.callback";
 
 const router = Router();
 
@@ -55,5 +58,21 @@ router.post(
   validate(changePasswordSchema),
   changePasswordHandler,
 );
+
+if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+  router.get(
+    "/google",
+    passport.authenticate("google", { scope: ["profile", "email"] }),
+  );
+  router.get("/google/callback", createOAuthCallback("google"));
+}
+
+if (env.FACEBOOK_APP_ID && env.FACEBOOK_APP_SECRET) {
+  router.get(
+    "/facebook",
+    passport.authenticate("facebook", { scope: ["email"] }),
+  );
+  router.get("/facebook/callback", createOAuthCallback("facebook"));
+}
 
 export default router;

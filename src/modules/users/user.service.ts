@@ -4,6 +4,7 @@ import {
 	findUserById,
 	findUserByEmailWithPassword,
 	updateUserById,
+	updateUserOnboarding,
 	clearAllRefreshTokens,
 	userExists,
 	createUser,
@@ -53,12 +54,8 @@ export async function updateUserForOnboarding(
 ): Promise<IUser> {
 	const { preferences } = dto;
 
-	const user = await findUserById(userId);
+	const user = await updateUserOnboarding(userId, { preferences });
 	if (!user) throw ApiError.notFound("User not found");
-
-	user.preferences = preferences;
-	user.hasOnboarded = true;
-	await user.save();
 
 	return user;
 }

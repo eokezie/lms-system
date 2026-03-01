@@ -53,6 +53,7 @@ export interface IUser extends Document {
   meta?: IMeta;
   refreshTokens: Array<{ token: string; createdAt: Date }>;
   preferences: IPreferences;
+  hasOnboarded: boolean;
   // Study goal — used for weekly progress tracker
   studyGoal: IStudyGoal;
   // Instructor-only extended profile
@@ -109,6 +110,10 @@ const userSchema = new Schema<IUser>(
       discovery: {
         type: String,
       },
+    },
+    hasOnboarded: {
+      type: Boolean,
+      default: false,
     },
     // Weekly study goal
     studyGoal: {

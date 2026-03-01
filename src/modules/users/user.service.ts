@@ -47,6 +47,22 @@ export async function updateUserProfile(
 	return user;
 }
 
+export async function updateUserForOnboarding(
+	userId: string,
+	dto: any,
+): Promise<IUser> {
+	const { preferences } = dto;
+
+	const user = await findUserById(userId);
+	if (!user) throw ApiError.notFound("User not found");
+
+	user.preferences = preferences;
+	user.hasOnboarded = true;
+	await user.save();
+
+	return user;
+}
+
 export async function changeUserPassword(
 	userId: string,
 	currentPassword: string,

@@ -4,6 +4,7 @@ import {
 	updateMe,
 	changePassword,
 	createUserHandler,
+	userOnboardingHandler,
 } from "./user.controller";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { validate } from "@/middleware/validate";
@@ -26,7 +27,7 @@ router.post(
 );
 router.get("/me", getMe);
 router.patch("/me", validate(updateProfileSchema), updateMe);
-router.patch("/onboarding", authorize(USER_ROLES[0]), updateMe);
+router.patch("/onboarding", authorize(USER_ROLES[0]), userOnboardingHandler);
 router.patch("/me/password", validate(changePasswordSchema), changePassword);
 
 export default router;

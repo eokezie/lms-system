@@ -18,6 +18,7 @@ export interface ICourse extends Document {
 	title: string;
 	slug: string;
 	description: string;
+	summary: string;
 	coverImage?: string;
 	instructor: mongoose.Types.ObjectId;
 	category: mongoose.Types.ObjectId;
@@ -56,6 +57,7 @@ const courseSchema = new Schema<ICourse>(
 			index: true,
 		},
 		description: { type: String, required: true, maxlength: 5000 },
+		summary: { type: String, required: true },
 		coverImage: { type: String },
 		instructor: {
 			type: Schema.Types.ObjectId,

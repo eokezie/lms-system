@@ -51,12 +51,15 @@ export async function updateUserForOnboarding(
 	userId: string,
 	dto: any,
 ): Promise<IUser> {
-	const queryObj = {
-		...dto,
-		hasOnboarded: true,
-	};
-	const user = await updateUserById(userId, queryObj);
+	const { preferences } = dto;
+
+	const user = await findUserById(userId);
 	if (!user) throw ApiError.notFound("User not found");
+
+	user.preferences = preferences;
+	user.hasOnboarded = true;
+	await user.save();
+
 	return user;
 }
 

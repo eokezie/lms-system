@@ -91,7 +91,10 @@ export function linkFacebookId(
 	).exec();
 }
 
-export function updateUserById(id: string, data: any): Promise<IUser | null> {
+export function updateUserById(
+	id: string,
+	data: UpdateUserDto,
+): Promise<IUser | null> {
 	return User.findByIdAndUpdate(
 		id,
 		{ $set: data },

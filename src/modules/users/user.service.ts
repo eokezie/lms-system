@@ -1,5 +1,5 @@
 import { logger } from "@/utils/logger";
-import { IUser, USER_ROLES } from "./user.model";
+import { IPreferences, IUser, USER_ROLES } from "./user.model";
 import {
 	findUserById,
 	findUserByEmailWithPassword,
@@ -49,17 +49,15 @@ export async function updateUserProfile(
 
 export async function updateUserForOnboarding(
 	userId: string,
-	dto: any,
+	dto: { preferences: IPreferences },
 ): Promise<IUser> {
 	const { preferences } = dto;
 
-	const user = await findUserById(userId);
+	const user = await updateUserById(userId, {
+		preferences,
+		hasOnboarded: true,
+	});
 	if (!user) throw ApiError.notFound("User not found");
-
-	user.preferences = preferences;
-	user.hasOnboarded = true;
-	await user.save();
-
 	return user;
 }
 

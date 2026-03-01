@@ -13,7 +13,7 @@ interface IMeta {
 	otp: TOtp;
 }
 
-interface IPreferences {
+export interface IPreferences {
 	description: string;
 	interestedField: string;
 	achievementGoal: string;

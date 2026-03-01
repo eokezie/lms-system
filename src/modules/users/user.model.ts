@@ -77,7 +77,7 @@ const userSchema = new Schema<IUser>(
 			trim: true,
 			index: true,
 		},
-		passwordHash: { type: String, required: true, select: false }, // never returned by default
+		passwordHash: { type: String, required: false, select: false }, // never returned by default
 		googleId: { type: String, sparse: true, unique: true },
 		facebookId: { type: String, sparse: true, unique: true },
 		role: {

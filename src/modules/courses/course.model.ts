@@ -13,6 +13,11 @@ export interface ICourseModule {
 	lessons: mongoose.Types.ObjectId[];
 }
 
+export interface ICtaSection {
+	heading: string;
+	subtext: string;
+}
+
 export interface ICourse extends Document {
 	_id: mongoose.Types.ObjectId;
 	title: string;
@@ -20,12 +25,21 @@ export interface ICourse extends Document {
 	description: string;
 	summary: string;
 	coverImage?: string;
+	skillLevel: string;
 	instructor: mongoose.Types.ObjectId;
 	category: mongoose.Types.ObjectId;
 	tags: string[];
 	status: ICourseStatus;
 	price: number;
 	isFree: boolean;
+	hasDownloadableResources: boolean;
+	hasQuizzes: boolean;
+	hasOnDemandVideo: boolean;
+	hasInstructorQA: boolean;
+	hasCertificate: boolean;
+	requirements: string[];
+	whatToLearn: string[];
+	ctaSection: ICtaSection;
 	courseModule: ICourseModule[];
 	enrollmentCount: number;
 	averageRating: number;
@@ -58,6 +72,7 @@ const courseSchema = new Schema<ICourse>(
 		},
 		description: { type: String, required: true, maxlength: 5000 },
 		summary: { type: String, required: true },
+		skillLevel: { type: String, required: true },
 		coverImage: { type: String },
 		instructor: {
 			type: Schema.Types.ObjectId,
@@ -65,7 +80,7 @@ const courseSchema = new Schema<ICourse>(
 			required: true,
 			index: true,
 		},
-		category: { type: Schema.Types.ObjectId, ref: "Category" },
+		category: { type: Schema.Types.ObjectId, ref: "Category", index: true },
 		tags: [{ type: String }],
 		status: {
 			type: String,
@@ -75,6 +90,17 @@ const courseSchema = new Schema<ICourse>(
 		},
 		price: { type: Number, default: 0, min: 0 },
 		isFree: { type: Boolean, default: true },
+		hasDownloadableResources: { type: Boolean, default: true },
+		hasQuizzes: { type: Boolean, default: true },
+		hasOnDemandVideo: { type: Boolean, default: true },
+		hasInstructorQA: { type: Boolean, default: false },
+		hasCertificate: { type: Boolean, default: true },
+		requirements: [{ type: String }],
+		whatToLearn: [{ type: String }],
+		ctaSection: {
+			heading: { type: String },
+			subtext: { type: String },
+		},
 		courseModule: [courseModuleSchema],
 		enrollmentCount: { type: Number, default: 0, min: 0 },
 		averageRating: { type: Number, default: 0, min: 0, max: 5 },

@@ -1,6 +1,10 @@
 import { ICategory, Category } from "./category.model";
 import { CreateCategoryDto } from "./category.types";
 
-export function createCourse(dto: CreateCategoryDto): Promise<ICategory> {
+export function createCategory(dto: CreateCategoryDto): Promise<ICategory> {
 	return Category.create(dto);
+}
+
+export function findAllCategories() {
+	return Category.find().lean();
 }

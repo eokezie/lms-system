@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type LessonType = "video" | "article" | "quiz";
+export type TLessonType = "video" | "article" | "quiz";
 
 export type MuxStatus = "waiting" | "preparing" | "ready" | "errored";
 
@@ -11,6 +11,11 @@ export interface IMuxData {
 	status: MuxStatus;
 }
 
+export enum LessonType {
+	video = "video",
+	article = "article",
+	quiz = "quiz",
+}
 export interface IAttachment {
 	label: string; // e.g. "Starter Files", "Slides"
 	url: string;
@@ -22,7 +27,7 @@ export interface ILesson extends Document {
 	// Which course this lesson belongs to — makes it easy to query
 	// "all lessons for course X" without going through the curriculum array
 	course: mongoose.Types.ObjectId;
-	type: LessonType;
+	type: TLessonType;
 	// Video lessons
 	mux?: IMuxData;
 	videoDuration?: number; // seconds — used to calculate course totalDuration
@@ -39,18 +44,17 @@ export interface ILesson extends Document {
 
 const lessonSchema = new Schema<ILesson>(
 	{
-		title: { type: String, required: true, trim: true, maxlength: 200 },
+		title: { type: String, required: false, trim: true, maxlength: 200 },
 		course: {
 			type: Schema.Types.ObjectId,
 			ref: "Course",
-			required: true,
+			required: false,
 			index: true,
 		},
 		type: {
 			type: String,
-			enum: ["video", "article", "quiz"],
-			required: true,
-			default: "video",
+			enum: LessonType,
+			required: false,
 		},
 		mux: {
 			uploadId: { type: String },
@@ -69,14 +73,14 @@ const lessonSchema = new Schema<ILesson>(
 		description: { type: String, maxlength: 500 },
 		attachments: [
 			{
-				label: { type: String, required: true },
-				url: { type: String, required: true },
+				label: { type: String, required: false },
+				url: { type: String, required: false },
 				_id: false,
 			},
 		],
 		isFree: { type: Boolean, default: false },
 		// Order within its section — frontend sorts by this when rendering curriculum
-		order: { type: Number, required: true, default: 0 },
+		order: { type: Number, required: false, default: 0 },
 	},
 	{
 		timestamps: true,

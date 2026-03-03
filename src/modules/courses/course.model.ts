@@ -40,7 +40,7 @@ export interface ICourse extends Document {
 	requirements: string[];
 	whatToLearn: string[];
 	ctaSection: ICtaSection;
-	courseModule: ICourseModule[];
+	courseModules: ICourseModule[];
 	enrollmentCount: number;
 	averageRating: number;
 	totalRatings: number;
@@ -57,7 +57,7 @@ const courseModuleSchema = new Schema<ICourseModule>(
 		sectionTitle: { type: String, required: true },
 		lessons: [{ type: Schema.Types.ObjectId, ref: "Lesson" }],
 	},
-	{ _id: false },
+	{ _id: true },
 );
 
 const courseSchema = new Schema<ICourse>(
@@ -101,7 +101,7 @@ const courseSchema = new Schema<ICourse>(
 			heading: { type: String },
 			subtext: { type: String },
 		},
-		courseModule: [courseModuleSchema],
+		courseModules: [courseModuleSchema],
 		enrollmentCount: { type: Number, default: 0, min: 0 },
 		averageRating: { type: Number, default: 0, min: 0, max: 5 },
 		totalRatings: { type: Number, default: 0 },
@@ -130,4 +130,7 @@ courseSchema.pre("validate", function (next) {
 	next();
 });
 
-export const Course = mongoose.model<ICourse>("Course", courseSchema);
+// export const Course = mongoose.model<ICourse>("Course", courseSchema);
+export const Course =
+	(mongoose.models.Course as mongoose.Model<ICourse>) ??
+	mongoose.model<ICourse>("Course", courseSchema);

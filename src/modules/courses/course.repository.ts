@@ -1,3 +1,4 @@
+import { ClientSession } from "mongoose";
 import { Course, ICourse } from "./course.model";
 import {
 	CreateCourseDto,
@@ -17,8 +18,11 @@ export function findCourseByIdWithInstructor(
 		.exec();
 }
 
-export function findCourseBySlug(slug: string): Promise<ICourse | null> {
-	return Course.findOne({ slug }).exec();
+export function findCourseBySlug(
+	slug: string,
+	session: ClientSession,
+): Promise<ICourse | null> {
+	return Course.findOne({ slug }).session(session).exec();
 }
 
 export async function findCoursesPaginated(
@@ -73,13 +77,19 @@ export function createCourse(
 	instructorId: string,
 	categoryId: string,
 	dto: CreateCourseDto,
-): Promise<ICourse> {
-	return Course.create({
-		...dto,
-		instructor: instructorId,
-		category: categoryId,
-		isFree: dto.price === 0 || dto.isFree,
-	});
+	session: ClientSession,
+) {
+	return Course.create(
+		[
+			{
+				...dto,
+				instructor: instructorId,
+				category: categoryId,
+				isFree: dto.price === 0 || dto.isFree,
+			},
+		],
+		{ session },
+	);
 }
 
 export function updateCourseById(

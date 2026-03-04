@@ -2,13 +2,20 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type TLessonType = "video" | "article" | "quiz";
 
-export type MuxStatus = "waiting" | "preparing" | "ready" | "errored";
+export type TMuxStatus = "waiting" | "preparing" | "ready" | "errored";
 
 export interface IMuxData {
 	uploadId?: string; // Mux direct upload ID (before asset is created)
 	assetId?: string; // Mux asset ID (created after upload completes)
 	playbackId?: string; // Public playback ID (available once asset is ready)
-	status: MuxStatus;
+	status: TMuxStatus;
+}
+
+export enum MuxStatus {
+	waiting = "waiting",
+	preparing = "preparing",
+	ready = "ready",
+	errored = "errored",
 }
 
 export enum LessonType {
@@ -21,23 +28,46 @@ export interface IAttachment {
 	url: string;
 }
 
+export interface IArticle {
+	image: String;
+	content: String;
+}
+
+export enum QuestionType {
+	single = "single",
+	multi = "multi",
+}
+
+export interface IQuestion {
+	type: QuestionType;
+	text: string;
+	options: {
+		content: string;
+		isAnswer: boolean;
+	}[];
+
+	reason: string;
+}
+
 export interface ILesson extends Document {
 	_id: mongoose.Types.ObjectId;
 	title: string;
 	// Which course this lesson belongs to — makes it easy to query
 	// "all lessons for course X" without going through the curriculum array
 	course: mongoose.Types.ObjectId;
+	experiencePoints: number;
 	type: TLessonType;
 	// Video lessons
 	mux?: IMuxData;
 	videoDuration?: number; // seconds — used to calculate course totalDuration
-	// Article lessons
-	content?: string; // rich text / markdown
+	// Article
+	article: IArticle;
+	// Quiz
+	questions: IQuestion[];
 	// Shared
 	description?: string; // short summary shown before the student starts
 	attachments: IAttachment[];
 	isFree: boolean; // preview lessons accessible without enrollment
-	order: number; // position within its section (for sorting)
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -51,6 +81,9 @@ const lessonSchema = new Schema<ILesson>(
 			required: false,
 			index: true,
 		},
+		experiencePoints: {
+			type: Number,
+		},
 		type: {
 			type: String,
 			enum: LessonType,
@@ -62,13 +95,34 @@ const lessonSchema = new Schema<ILesson>(
 			playbackId: { type: String },
 			status: {
 				type: String,
-				enum: ["waiting", "preparing", "ready", "errored"],
-				default: "waiting",
+				enum: MuxStatus,
+				default: MuxStatus.waiting,
 			},
 		},
 		videoDuration: { type: Number, min: 0 }, // seconds
 		// Article
-		content: { type: String },
+		article: {
+			image: { type: String },
+			content: { type: String },
+		},
+		// Quiz
+		questions: [
+			{
+				type: {
+					type: String,
+					enum: QuestionType,
+					default: QuestionType.single,
+				},
+				text: { type: String },
+				options: [
+					{
+						content: { type: String },
+						isAnswer: { type: Boolean, default: false },
+					},
+				],
+				reason: { type: String },
+			},
+		],
 		// Shared
 		description: { type: String, maxlength: 500 },
 		attachments: [
@@ -79,8 +133,6 @@ const lessonSchema = new Schema<ILesson>(
 			},
 		],
 		isFree: { type: Boolean, default: false },
-		// Order within its section — frontend sorts by this when rendering curriculum
-		order: { type: Number, required: false, default: 0 },
 	},
 	{
 		timestamps: true,

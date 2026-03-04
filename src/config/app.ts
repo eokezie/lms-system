@@ -12,6 +12,7 @@ import userRoutes from "@/modules/users/user.routes";
 import passport from "@/modules/auth/passport.strategies";
 import categoryRoutes from "@/modules/category/category.routes";
 import courseRoutes from "@/modules/courses/course.routes";
+import lessonRoutes from "@/modules/lessons/lesson.routes";
 
 const app = express();
 
@@ -75,8 +76,8 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/category", categoryRoutes);
 app.use("/api/v1/courses", courseRoutes);
+app.use("/api/v1/lessons", lessonRoutes);
 // app.use('/api/v1/enrollments', enrollmentRoutes);
-// app.use('/api/v1/lessons', lessonRoutes);
 // app.use('/api/v1/progress', progressRoutes);
 
 // --- 404 ---

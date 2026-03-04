@@ -1,14 +1,13 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { USER_ROLES } from "../users/user.model";
 import { createMuxUploadHandler, muxWebhookHandler } from "./lesson.controller";
 
 const router = Router();
 
-router.use(authenticate);
-
 router.post(
 	"/",
+	authenticate,
 	authorize(USER_ROLES[1], USER_ROLES[2]),
 	// validate(createCourseSchema),
 	createMuxUploadHandler,
@@ -16,8 +15,7 @@ router.post(
 
 router.post(
 	"/webhook/mux",
-	authorize(USER_ROLES[1], USER_ROLES[2]),
-	// validate(createCourseSchema),
+	express.raw({ type: "application/json" }),
 	muxWebhookHandler,
 );
 

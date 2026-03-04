@@ -37,16 +37,22 @@ export async function createMuxUpload(lessonId: string) {
 
 export async function verifyMuxWebhook(req: any) {
 	const muxSigningSecret = env.MUX_SIGNING_SECRET;
+	console.log("In Webhook>>");
 
 	try {
+		console.log("ABout to Verify !!");
 		mux.webhooks.verifySignature(req.body, req.headers, muxSigningSecret);
 	} catch (error: any) {
 		console.error(error);
 		throw ApiError.badRequest("Invalid Mux signature");
 	}
 
+	console.log("Verified!");
 	const event = JSON.parse(req.body.toString());
 	const { type, data } = event;
+
+	console.log("Type >>", type);
+	console.log("Data >>", data);
 
 	switch (type) {
 		// Fired when Mux starts processing
@@ -85,4 +91,5 @@ export async function verifyMuxWebhook(req: any) {
 		default:
 			break;
 	}
+	console.log("Done!");
 }

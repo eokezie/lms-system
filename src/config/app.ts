@@ -42,15 +42,10 @@ app.use(
 	}),
 );
 
+app.use("/api/v1/lessons", lessonRoutes);
+
 // --- Body parsing ---
-// app.use(express.json({ limit: "10mb" }));
-app.use((req, res, next) => {
-	if (req.originalUrl.includes("/webhook/mux")) {
-		next(); // skip global json parser for this route
-	} else {
-		express.json({ limit: "10mb" })(req, res, next);
-	}
-});
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // --- Passport (for OAuth) ---
@@ -83,7 +78,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/category", categoryRoutes);
 app.use("/api/v1/courses", courseRoutes);
-app.use("/api/v1/lessons", lessonRoutes);
+// app.use("/api/v1/lessons", lessonRoutes);
 // app.use('/api/v1/enrollments', enrollmentRoutes);
 // app.use('/api/v1/progress', progressRoutes);
 

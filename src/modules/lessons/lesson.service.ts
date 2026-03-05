@@ -45,7 +45,11 @@ export async function verifyMuxWebhook(req: any) {
 
 	try {
 		console.log("ABout to Verify !!");
-		mux.webhooks.verifySignature(req.body, req.headers, muxSigningSecret);
+		mux.webhooks.verifySignature(
+			req.body.toString(),
+			req.headers,
+			muxSigningSecret,
+		);
 	} catch (error: any) {
 		console.error(error);
 		throw ApiError.badRequest("Invalid Mux signature");

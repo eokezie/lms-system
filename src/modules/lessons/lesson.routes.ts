@@ -15,7 +15,8 @@ router.post(
 
 router.post(
 	"/webhook/mux",
-	express.raw({ type: "application/json" }),
+	// express.raw({ type: "application/json" }),
+	express.raw({ type: "*/*" }),
 	muxWebhookHandler,
 );
 

@@ -36,6 +36,10 @@ export async function createMuxUpload(lessonId: string) {
 }
 
 export async function verifyMuxWebhook(req: any) {
+	console.log("Content-Type:", req.headers["content-type"]);
+	console.log("Is Buffer:", Buffer.isBuffer(req.body));
+	console.log("Body type:", typeof req.body);
+
 	const muxSigningSecret = env.MUX_SIGNING_SECRET;
 	console.log("In Webhook>>");
 

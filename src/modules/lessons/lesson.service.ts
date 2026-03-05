@@ -41,6 +41,10 @@ export async function verifyMuxWebhook(req: any) {
 	console.log("Body type:", typeof req.body);
 
 	const muxSigningSecret = env.MUX_SIGNING_SECRET;
+	console.log("Secret:", muxSigningSecret);
+	console.log("Body string:", req.body.toString().substring(0, 100));
+	console.log("Sig header:", req.headers["mux-signature"]);
+
 	console.log("In Webhook>>");
 
 	try {

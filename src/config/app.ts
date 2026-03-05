@@ -43,7 +43,14 @@ app.use(
 );
 
 // --- Body parsing ---
-app.use(express.json({ limit: "10mb" }));
+// app.use(express.json({ limit: "10mb" }));
+app.use((req, res, next) => {
+	if (req.originalUrl.includes("/webhook/mux")) {
+		next(); // skip global json parser for this route
+	} else {
+		express.json({ limit: "10mb" })(req, res, next);
+	}
+});
 app.use(express.urlencoded({ extended: true }));
 
 // --- Passport (for OAuth) ---

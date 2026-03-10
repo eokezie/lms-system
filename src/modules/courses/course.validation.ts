@@ -5,6 +5,7 @@ export const createCourseSchema = z.object({
 	categoryId: z.string().min(24),
 	title: z.string().trim(),
 	description: z.string(),
+	estimatedCompletionTime: z.number(),
 	summary: z.string(),
 	skillLevel: z.string(),
 	requirements: z.array(z.string()),

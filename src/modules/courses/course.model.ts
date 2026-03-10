@@ -11,6 +11,7 @@ export enum CourseStatus {
 export interface ICourseModule {
 	sectionTitle: string;
 	lessons: mongoose.Types.ObjectId[];
+	moduleId: string;
 }
 
 export interface ICtaSection {
@@ -27,6 +28,7 @@ export interface ICourse extends Document {
 	coverImage?: string;
 	skillLevel: string;
 	instructor: mongoose.Types.ObjectId;
+	estimatedCompletionTime: number;
 	category: mongoose.Types.ObjectId;
 	tags: string[];
 	status: ICourseStatus;
@@ -54,8 +56,9 @@ export interface ICourse extends Document {
 
 const courseModuleSchema = new Schema<ICourseModule>(
 	{
-		sectionTitle: { type: String, required: true },
+		sectionTitle: { type: String, required: false },
 		lessons: [{ type: Schema.Types.ObjectId, ref: "Lesson" }],
+		moduleId: { type: String, unique: true },
 	},
 	{ _id: true },
 );
@@ -73,11 +76,12 @@ const courseSchema = new Schema<ICourse>(
 		description: { type: String, required: true, maxlength: 5000 },
 		summary: { type: String, required: true },
 		skillLevel: { type: String, required: true },
+		estimatedCompletionTime: { type: Number, required: false },
 		coverImage: { type: String },
 		instructor: {
 			type: Schema.Types.ObjectId,
 			ref: "User",
-			required: true,
+			required: false,
 			index: true,
 		},
 		category: { type: Schema.Types.ObjectId, ref: "Category", index: true },

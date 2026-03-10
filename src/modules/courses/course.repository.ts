@@ -6,8 +6,11 @@ import {
 	CoursePaginationOptions,
 } from "./course.types";
 
-export function findCourseById(id: string): Promise<ICourse | null> {
-	return Course.findById(id).exec();
+export function findCourseById(
+	id: string,
+	session: ClientSession,
+): Promise<ICourse | null> {
+	return Course.findById(id).session(session).exec();
 }
 
 export function findCourseByIdWithInstructor(
@@ -18,11 +21,8 @@ export function findCourseByIdWithInstructor(
 		.exec();
 }
 
-export function findCourseBySlug(
-	slug: string,
-	session: ClientSession,
-): Promise<ICourse | null> {
-	return Course.findOne({ slug }).session(session).exec();
+export function findCourseBySlug(slug: string): Promise<ICourse | null> {
+	return Course.findOne({ slug }).exec();
 }
 
 export async function findCoursesPaginated(
@@ -73,23 +73,14 @@ export function findCoursesByInstructor(
 		.exec();
 }
 
-export function createCourse(
-	instructorId: string,
-	categoryId: string,
-	dto: CreateCourseDto,
-	session: ClientSession,
-) {
-	return Course.create(
-		[
-			{
-				...dto,
-				instructor: instructorId,
-				category: categoryId,
-				isFree: dto.price === 0 || dto.isFree,
-			},
-		],
-		{ session },
-	);
+export function createCourse(dto: CreateCourseDto) {
+	const { instructorId, categoryId } = dto;
+	return Course.create({
+		...dto,
+		instructor: instructorId,
+		category: categoryId,
+		isFree: dto.price === 0 || dto.isFree,
+	});
 }
 
 export function updateCourseById(

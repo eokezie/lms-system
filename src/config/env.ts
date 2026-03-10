@@ -40,9 +40,9 @@ const envSchema = z.object({
 	RATE_LIMIT_MAX: z.coerce.number().default(100),
 
 	// Mux
-	MUX_TOKEN_ID: z.string(),
-	MUX_TOKEN_SECRET: z.string(),
-	MUX_SIGNING_SECRET: z.string(),
+	MUX_TOKEN_ID: z.string().optional(),
+	MUX_TOKEN_SECRET: z.string().optional(),
+	MUX_SIGNING_SECRET: z.string().optional(),
 
 	// OAuth
 	GOOGLE_CLIENT_ID: z.string().optional(),
@@ -56,6 +56,10 @@ const envSchema = z.object({
 	// Resend
 	RESEND_API_KEY: z.string().optional(),
 	RESEND_MAILER_SENDER: z.string().email().optional(),
+
+	// Digital Ocean Spaces
+	DIGITAL_OCEAN_SPACES_ACCESS_KEY_ID: z.string().optional(),
+	DIGITAL_OCEAN_SPACES_SECRET_ACCESS_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

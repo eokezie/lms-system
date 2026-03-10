@@ -1,10 +1,18 @@
 import { logger } from "@/utils/logger";
 import { ApiError } from "@/utils/apiError";
-import { UpdateLessonDto } from "./lesson.type";
-import { findLessonById, updateLessonById } from "./lesson.repository";
+import { CreateLessonDto, UpdateLessonDto } from "./lesson.type";
+import {
+	createLesson,
+	findLessonById,
+	updateLessonById,
+} from "./lesson.repository";
 import { mux } from "@/libs/mux";
-import { MuxStatus } from "./lesson.model";
+import { LessonType, MuxStatus } from "./lesson.model";
 import { env } from "@/config/env";
+import { UploadedFiles } from "@/helpers/multerHelper";
+import { findCourseById } from "../courses/course.repository";
+import { uploadFile } from "@/libs/spacesFileUpload";
+import mongoose from "mongoose";
 
 export async function updateLessonService(
 	lessonId: string,
@@ -104,4 +112,209 @@ export async function verifyMuxWebhook(req: any) {
 			break;
 	}
 	console.log("Done!");
+}
+
+// export async function createLessonService(
+// 	uploadedFiles: UploadedFiles,
+// 	dto: CreateLessonDto,
+// ) {
+// 	const session = await mongoose.startSession();
+
+// 	try {
+// 		const result = await session.withTransaction(async () => {
+// 			const course = await findCourseById(dto.courseId, session);
+// 			if (!course) throw ApiError.notFound("No course matched the provided ID");
+
+// 			const { thumbnailImage, captionFile, resources } = uploadedFiles;
+
+// 			const [thumbnailImageData, captionFileData, resourcesData] =
+// 				await Promise.all([
+// 					thumbnailImage
+// 						? uploadFile(
+// 								thumbnailImage,
+// 								`{Courses/${dto.courseId}/Lessons/${dto.title}/Thumbnail`,
+// 							)
+// 						: Promise.resolve(undefined),
+// 					captionFile
+// 						? uploadFile(
+// 								captionFile,
+// 								`{Courses/${dto.courseId}/Lessons/${dto.title}/Caption`,
+// 							)
+// 						: Promise.resolve(undefined),
+// 					Promise.all(
+// 						resources.map((resourceFile) =>
+// 							uploadFile(
+// 								resourceFile,
+// 								`{Courses/${dto.courseId}/Lessons/${dto.title}/Resources`,
+// 							),
+// 						),
+// 					),
+// 				]);
+
+// 			const [lesson] = await createLesson(
+// 				dto.courseId,
+// 				{
+// 					...dto,
+// 					thumbnailImage: thumbnailImageData,
+// 					captionFile: captionFileData,
+// 					resources: resourcesData,
+// 				},
+// 				session,
+// 			);
+// 			if (!lesson) throw ApiError.badRequest("Failed to create lesson!");
+
+// 			const targetModule = course.courseModules.find(
+// 				(mod) => mod.moduleId === dto.moduleId,
+// 			);
+
+// 			if (targetModule) {
+// 				const alreadyExists = targetModule.lessons.some((id) =>
+// 					id.equals(lesson._id),
+// 				);
+// 				if (!alreadyExists) {
+// 					targetModule.lessons.push(lesson._id);
+// 				}
+// 			} else {
+// 				course.courseModules.push({
+// 					sectionTitle:
+// 						dto.moduleTitle ?? `Module ${course.courseModules.length + 1}`,
+// 					lessons: [lesson._id],
+// 					moduleId: dto.moduleId,
+// 				});
+// 			}
+
+// 			await course.save({ session });
+
+// 			if (dto.type === LessonType.video) {
+// 				const upload = await mux.video.uploads.create({
+// 					cors_origin: "*",
+// 					new_asset_settings: {
+// 						playback_policy: ["public"],
+// 						passthrough: lesson._id.toString(), // ← tie the webhook back to this lesson
+// 					},
+// 				});
+
+// 				// Persist the uploadId so the webhook can look up by assetId later
+// 				lesson.mux = {
+// 					uploadId: upload.id,
+// 					status: MuxStatus.waiting,
+// 				};
+// 				await lesson.save({ session });
+// 				return { lesson, upload };
+// 			}
+
+// 			return { lesson };
+// 		});
+
+// 		return result;
+// 	} catch (error: any) {
+// 		throw error;
+// 	} finally {
+// 		await session.endSession();
+// 	}
+// }
+
+export async function createLessonService(
+	uploadedFiles: UploadedFiles,
+	dto: CreateLessonDto,
+) {
+	console.log("Step 1: Starting file uploads");
+	// ---- do all external calls BEFORE the transaction ----
+	const { thumbnailImage, captionFile, resources } = uploadedFiles;
+	const [thumbnailImageData, captionFileData, resourcesData] =
+		await Promise.all([
+			thumbnailImage
+				? uploadFile(
+						thumbnailImage,
+						`Courses/${dto.courseId}/Lessons/${dto.title}/Thumbnail`,
+					)
+				: Promise.resolve(undefined),
+			captionFile
+				? uploadFile(
+						captionFile,
+						`Courses/${dto.courseId}/Lessons/${dto.title}/Caption`,
+					)
+				: Promise.resolve(undefined),
+			Promise.all(
+				resources.map((resourceFile) =>
+					uploadFile(
+						resourceFile,
+						`Courses/${dto.courseId}/Lessons/${dto.title}/Resources`,
+					),
+				),
+			),
+		]);
+	console.log("Step 1: Done");
+
+	let upload: any;
+	if (dto.type === LessonType.video) {
+		console.log("Step 2: Creating mux upload");
+		upload = await mux.video.uploads.create({
+			cors_origin: "*",
+			new_asset_settings: {
+				playback_policy: ["public"],
+				passthrough: `${dto.courseId}_${dto.title}`, // no lessonId yet, update after
+			},
+		});
+		console.log("Step 2: Done", upload.id);
+	}
+
+	// ---- transaction is now purely fast DB writes ----
+	const session = await mongoose.startSession();
+	try {
+		const result = await session.withTransaction(async () => {
+			console.log("Step 3: Finding course");
+			const course = await findCourseById(dto.courseId, session);
+			if (!course) throw ApiError.notFound("No course matched the provided ID");
+			console.log("Step 3: Done", course?._id);
+
+			console.log("Step 4: Creating lesson");
+			const [lesson] = await createLesson(
+				dto.courseId,
+				{
+					...dto,
+					thumbnailImage: thumbnailImageData,
+					captionFile: captionFileData,
+					resources: resourcesData,
+					...(upload && {
+						mux: { uploadId: upload.id, status: MuxStatus.waiting },
+					}),
+				},
+				session,
+			);
+			if (!lesson) throw ApiError.badRequest("Failed to create lesson!");
+			console.log("Step 4: Done", lesson?._id);
+
+			const targetModule = course.courseModules.find(
+				(mod) => mod.moduleId === dto.moduleId,
+			);
+
+			if (targetModule) {
+				const alreadyExists = targetModule.lessons.some((id) =>
+					id.equals(lesson._id),
+				);
+				if (!alreadyExists) targetModule.lessons.push(lesson._id);
+			} else {
+				course.courseModules.push({
+					sectionTitle:
+						dto.moduleTitle ?? `Module ${course.courseModules.length + 1}`,
+					lessons: [lesson._id],
+					moduleId: dto.moduleId,
+				});
+			}
+
+			console.log("Step 5: Saving course");
+			await course.save({ session });
+			console.log("Step 5: Done");
+
+			return { lesson, upload };
+		});
+
+		return result;
+	} catch (error: any) {
+		console.error("Transaction failed at step:", error.message);
+		throw error;
+	} finally {
+		await session.endSession();
+	}
 }

@@ -8,6 +8,7 @@ export interface CreateCourseDto {
 	category: string;
 	summary: string;
 	skillLevel: string;
+	estimatedCompletionTime: string;
 	hasDownloadableResources?: boolean;
 	hasQuizzes?: boolean;
 	hasOnDemandVideo?: boolean;

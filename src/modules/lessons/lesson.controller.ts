@@ -4,6 +4,7 @@ import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import {
 	createLessonService,
 	createMuxUpload,
+	getLessonByIdService,
 	updateLessonService,
 	verifyMuxWebhook,
 } from "./lesson.service";
@@ -52,6 +53,18 @@ export const muxWebhookHandler = catchAsync(
 		sendSuccess({
 			res,
 			message: "Mux webhook signature verified successfully",
+		});
+	},
+);
+
+export const getLessonByIdHandler = catchAsync(
+	async (req: Request, res: Response) => {
+		const { lessonId } = req.params;
+		const lesson = await getLessonByIdService(lessonId);
+		sendCreated({
+			res,
+			message: "Lesson was fetched successfully",
+			data: lesson,
 		});
 	},
 );

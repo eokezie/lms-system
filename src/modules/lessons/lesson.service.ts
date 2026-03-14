@@ -418,3 +418,10 @@ export async function createLessonService(dto: CreateLessonDto) {
 		throw error;
 	}
 }
+
+export async function getLessonByIdService(lessonId: string) {
+	const lesson = await findLessonById(lessonId);
+	if (!lesson) throw ApiError.notFound("No Lesson matched the provided ID");
+
+	return lesson;
+}

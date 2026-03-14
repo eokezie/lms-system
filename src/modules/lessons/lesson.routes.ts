@@ -5,9 +5,14 @@ import {
 	createLessonHandler,
 	createMuxUploadHandler,
 	muxWebhookHandler,
+	updateLessonHandler,
 } from "./lesson.controller";
 import { processFiles } from "@/middleware/multer.middleware";
-import { createLessonSchema } from "./lesson.validation";
+import {
+	createLessonSchema,
+	muxUploadIdSchema,
+	updateLessonSchema,
+} from "./lesson.validation";
 import { validate } from "@/middleware/validate";
 
 const router = Router();
@@ -16,11 +21,30 @@ router.post(
 	"/",
 	authenticate,
 	authorize(USER_ROLES[1], USER_ROLES[2]),
-	processFiles,
 	validate(createLessonSchema),
 	createLessonHandler,
 );
-
+router.patch(
+	"/:lessonId",
+	authenticate,
+	authorize(USER_ROLES[1], USER_ROLES[2]),
+	processFiles,
+	validate(updateLessonSchema),
+	updateLessonHandler,
+);
+router.get(
+	"/:lessonId",
+	authenticate,
+	authorize(USER_ROLES[1], USER_ROLES[2]),
+	updateLessonHandler,
+);
+router.post(
+	"/mux",
+	authenticate,
+	authorize(USER_ROLES[1], USER_ROLES[2]),
+	validate(muxUploadIdSchema),
+	createMuxUploadHandler,
+);
 router.post(
 	"/webhook/mux",
 	// express.raw({ type: "application/json" }),

@@ -43,7 +43,7 @@ router.get(
 router.use("/:id/ratings", ratingRoutes);
 router.post(
   "/",
-  authorize(USER_ROLES[1], USER_ROLES[2]),
+  authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
   validate(createCourseSchema),
   createCourseHandler,
 );

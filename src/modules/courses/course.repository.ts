@@ -1,10 +1,16 @@
-import { ClientSession } from "mongoose";
+import mongoose, { ClientSession } from "mongoose";
 import { Course, ICourse } from "./course.model";
 import {
 	CreateCourseDto,
 	UpdateCourseDto,
 	CoursePaginationOptions,
 } from "./course.types";
+
+const PUBLISHED = "published";
+
+function isMongoId24(s: string): boolean {
+	return /^[a-fA-F0-9]{24}$/.test(s);
+}
 
 export function findCourseById(
 	id: string,
@@ -27,12 +33,101 @@ export function findCourseBySlug(slug: string): Promise<ICourse | null> {
 	return Course.findOne({ slug }).exec();
 }
 
+/** Single course by id or slug for student (published only)*/
+export async function findCourseByIdOrSlugForStudent(idOrSlug: string): Promise<
+	| (ICourse & {
+			instructor?: {
+				_id: string;
+				firstName: string;
+				lastName: string;
+				avatar?: string;
+			};
+	  })
+	| null
+> {
+	const matchFilter: Record<string, unknown> = { status: PUBLISHED };
+	if (isMongoId24(idOrSlug)) {
+		matchFilter._id = new mongoose.Types.ObjectId(idOrSlug);
+	} else {
+		matchFilter.slug = idOrSlug;
+	}
+	const docs = await Course.aggregate([
+		{ $match: matchFilter },
+		{ $limit: 1 },
+		{
+			$lookup: {
+				from: "users",
+				localField: "instructor",
+				foreignField: "_id",
+				as: "instructorDoc",
+				pipeline: [
+					{ $project: { firstName: 1, lastName: 1, avatar: 1, _id: 1 } },
+				],
+			},
+		},
+		{
+			$set: {
+				instructor: { $arrayElemAt: ["$instructorDoc", 0] },
+			},
+		},
+		{ $project: { instructorDoc: 0 } },
+	]).exec();
+	const doc = docs[0] || null;
+	return doc as any;
+}
+
+/** Related published courses by same category; excludes given course id. */
+export function findRelatedPublishedCourses(
+	categoryId: mongoose.Types.ObjectId,
+	excludeCourseId: string,
+	limit: number,
+): Promise<
+	(ICourse & {
+		instructor?: {
+			_id: string;
+			firstName: string;
+			lastName: string;
+			avatar?: string;
+		};
+	})[]
+> {
+	return Course.find({
+		category: categoryId,
+		_id: { $ne: new mongoose.Types.ObjectId(excludeCourseId) },
+		status: PUBLISHED,
+	})
+		.populate("instructor", "firstName lastName avatar")
+		.limit(limit)
+		.sort({ enrollmentCount: -1, createdAt: -1 })
+		.lean()
+		.exec() as Promise<any>;
+}
+
+function getTimeRangeFilter(
+	avgTimeToComplete: CoursePaginationOptions["avgTimeToComplete"],
+): { $gte?: number; $lte?: number } | null {
+	if (!avgTimeToComplete) return null;
+	switch (avgTimeToComplete) {
+		case "0-5":
+			return { $gte: 0, $lte: 5 };
+		case "6-15":
+			return { $gte: 6, $lte: 15 };
+		case "16-25":
+			return { $gte: 16, $lte: 25 };
+		case "26+":
+			return { $gte: 26 };
+		default:
+			return null;
+	}
+}
+
 export async function findCoursesPaginated(
 	options: CoursePaginationOptions,
 ): Promise<{
 	courses: ICourse[];
 	total: number;
 	page: number;
+	limit: number;
 	totalPages: number;
 }> {
 	const {
@@ -41,11 +136,23 @@ export async function findCoursesPaginated(
 		category,
 		status = "published",
 		search,
+		skillLevel,
+		price,
+		instructorIds,
+		avgTimeToComplete,
 	} = options;
 	const skip = (page - 1) * limit;
 
 	const filter: Record<string, unknown> = { status };
 	if (category) filter.category = category;
+	if (skillLevel) filter.skillLevel = skillLevel;
+	if (price === "free") filter.isFree = true;
+	if (price === "paid") filter.isFree = false;
+	if (instructorIds?.length) filter.instructor = { $in: instructorIds };
+	if (avgTimeToComplete) {
+		const range = getTimeRangeFilter(avgTimeToComplete);
+		if (range) filter.estimatedCompletionTime = range;
+	}
 	if (search) {
 		filter.$or = [
 			{ title: { $regex: search, $options: "i" } },
@@ -64,7 +171,13 @@ export async function findCoursesPaginated(
 		Course.countDocuments(filter),
 	]);
 
-	return { courses, total, page, totalPages: Math.ceil(total / limit) };
+	return {
+		courses,
+		total,
+		page,
+		limit,
+		totalPages: Math.ceil(total / limit),
+	};
 }
 
 export function findCoursesByInstructor(
@@ -128,4 +241,23 @@ export async function findCountOfCoursesPerCategory() {
 	return await Course.aggregate([
 		{ $group: { _id: "$category", count: { $sum: 1 } } },
 	]);
+}
+
+export async function findCountOfPublishedCoursesPerCategory() {
+	return await Course.aggregate([
+		{ $match: { status: "published" } },
+		{ $group: { _id: "$category", count: { $sum: 1 } } },
+	]);
+}
+
+export function updateCourseRatingStats(
+	courseId: string,
+	averageRating: number,
+	totalRatings: number,
+): Promise<unknown> {
+	return Course.findByIdAndUpdate(
+		courseId,
+		{ $set: { averageRating, totalRatings } },
+		{ new: true },
+	).exec();
 }

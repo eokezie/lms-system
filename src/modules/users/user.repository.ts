@@ -1,4 +1,4 @@
-import { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 import { User, IUser } from "./user.model";
 import {
   CreateUserDto,
@@ -52,6 +52,22 @@ export function findUserByFacebookId(
   facebookId: string,
 ): Promise<IUser | null> {
   return User.findOne({ facebookId }).exec();
+}
+
+/** Used for course explore filter: instructorType = "infinix" | "external". */
+export function findInstructorIdsByIsInfinix(
+  isInfinix: boolean,
+): Promise<mongoose.Types.ObjectId[]> {
+  const filter: FilterQuery<IUser> = { role: "instructor" };
+  if (isInfinix) {
+    filter.isInfinixInstructor = true;
+  } else {
+    filter.$or = [
+      { isInfinixInstructor: false },
+      { isInfinixInstructor: { $exists: false } },
+    ];
+  }
+  return User.find(filter).distinct("_id").exec();
 }
 
 export function createUserFromOAuth(

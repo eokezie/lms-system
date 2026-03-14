@@ -4,13 +4,14 @@ import { CreateLessonDto } from "./lesson.type";
 
 export function createLesson(
 	courseId: string,
-	data: CreateLessonDto,
-	session: ClientSession,
+	data: object,
+	// session: ClientSession,
 ) {
+	return Lesson.create({ ...data, course: courseId });
 	// return Lesson.create([{ ...data, course: courseId }], { session });
-	const lesson = new Lesson({ ...data, course: courseId });
-	lesson.$locals.session = session;
-	return lesson.save({ session }).then((doc) => [doc]);
+	// const lesson = new Lesson({ ...data, course: courseId });
+	// lesson.$locals.session = session;
+	// return lesson.save({ session }).then((doc) => [doc]);
 }
 
 export function updateLessonById(

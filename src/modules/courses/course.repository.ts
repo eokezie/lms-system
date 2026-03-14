@@ -8,9 +8,11 @@ import {
 
 export function findCourseById(
 	id: string,
-	session: ClientSession,
+	session?: ClientSession,
 ): Promise<ICourse | null> {
-	return Course.findById(id).session(session).exec();
+	return Course.findById(id)
+		.session(session ?? null)
+		.exec();
 }
 
 export function findCourseByIdWithInstructor(

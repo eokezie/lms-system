@@ -9,27 +9,27 @@ import {
 } from "./lesson.service";
 import { getUploadedFiles } from "@/helpers/multerHelper";
 
-export const updateLessonHandler = catchAsync(
+export const createLessonHandler = catchAsync(
 	async (req: Request, res: Response) => {
-		const { lessonId } = req.params;
-		const lesson = await updateLessonService(lessonId, req.body);
-		sendSuccess({
+		const lesson = await createLessonService(req.body);
+		sendCreated({
 			res,
-			message: "Lesson updated successfully",
-			data: { lesson },
+			message: "Lesson created successfully",
+			data: lesson,
 		});
 	},
 );
 
-export const createLessonHandler = catchAsync(
+export const updateLessonHandler = catchAsync(
 	async (req: Request, res: Response) => {
+		const { lessonId } = req.params;
 		const uploadedFiles = getUploadedFiles(req);
-		const result = await createLessonService(uploadedFiles, req.body);
+		const result = await updateLessonService(lessonId, uploadedFiles, req.body);
 		sendCreated({
 			res,
-			message: "Lesson created successfully",
+			message: "Lesson was updated successfully",
 			data: result?.lesson,
-			meta: result?.upload ? { ...result.upload } : undefined,
+			// meta: result?.upload ? { ...result.upload } : undefined,
 		});
 	},
 );

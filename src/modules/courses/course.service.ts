@@ -37,11 +37,18 @@ export async function getSingleCourseWithModulesAndLessons(idOrSlug: string) {
     }
   }
 
-  let lessonsMap = new Map<string, any>();
+  const lessonsMap = new Map<string, any>();
   if (lessonIds.length > 0) {
     const lessons = await findLessonsByIdsLean(lessonIds);
     lessons.forEach((l) => lessonsMap.set(String(l._id), l));
   }
+
+  const shapeLessonForResponse = (lesson: any) => {
+    if (!lesson) return null;
+    const out = { ...lesson };
+    if (out.type !== "quiz") delete out.questions;
+    return out;
+  };
 
   const courseModules = modules.map((mod: any) => ({
     sectionTitle: mod.sectionTitle,
@@ -52,7 +59,7 @@ export async function getSingleCourseWithModulesAndLessons(idOrSlug: string) {
           lid && typeof lid === "object" && lid._id != null
             ? String(lid._id)
             : String(lid);
-        return lessonsMap.get(id) ?? null;
+        return shapeLessonForResponse(lessonsMap.get(id) ?? null);
       })
       .filter(Boolean),
   }));

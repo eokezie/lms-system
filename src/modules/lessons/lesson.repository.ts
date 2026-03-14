@@ -2,6 +2,7 @@ import mongoose, { ClientSession } from "mongoose";
 import { ILesson, Lesson } from "./lesson.model";
 import { CreateLessonDto } from "./lesson.type";
 
+/** Fields returned for course content: video gets mux/caption/thumbnail/resources; quiz gets questions. */
 export interface ILessonListItem {
   _id: mongoose.Types.ObjectId;
   title: string;
@@ -9,16 +10,27 @@ export interface ILessonListItem {
   videoDuration?: number;
   type: string;
   experiencePoints: number;
+  mux?: { playbackId?: string; status?: string };
+  thumbnailImage?: { fileName?: string; fileType?: string; fileUrl?: string };
+  captionFile?: { fileName?: string; fileType?: string; fileUrl?: string };
+  resources?: Array<{
+    fileName?: string;
+    fileType?: string;
+    fileSize?: number;
+    fileUrl?: string;
+  }>;
+  questions?: unknown[];
 }
+
+const LESSON_SELECT_FOR_COURSE =
+  "title estimatedCompletionTime videoDuration type experiencePoints _id mux thumbnailImage captionFile resources questions";
 
 export function findLessonsByIdsLean(
   ids: mongoose.Types.ObjectId[],
 ): Promise<ILessonListItem[]> {
   if (ids.length === 0) return Promise.resolve([]);
   return Lesson.find({ _id: { $in: ids } })
-    .select(
-      "title estimatedCompletionTime videoDuration type experiencePoints _id",
-    )
+    .select(LESSON_SELECT_FOR_COURSE)
     .lean()
     .exec() as Promise<ILessonListItem[]>;
 }

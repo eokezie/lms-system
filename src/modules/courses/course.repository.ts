@@ -31,8 +31,8 @@ export function findCourseBySlug(slug: string): Promise<ICourse | null> {
   return Course.findOne({ slug }).exec();
 }
 
-/** Single course by id or slug for student (published only). Optimized: lean + minimal populate. */
-export function findCourseByIdOrSlugForStudent(idOrSlug: string): Promise<
+/** Single course by id or slug for student (published only)*/
+export async function findCourseByIdOrSlugForStudent(idOrSlug: string): Promise<
   | (ICourse & {
       instructor?: {
         _id: string;
@@ -43,16 +43,35 @@ export function findCourseByIdOrSlugForStudent(idOrSlug: string): Promise<
     })
   | null
 > {
-  const filter: Record<string, unknown> = { status: PUBLISHED };
+  const matchFilter: Record<string, unknown> = { status: PUBLISHED };
   if (isMongoId24(idOrSlug)) {
-    filter._id = new mongoose.Types.ObjectId(idOrSlug);
+    matchFilter._id = new mongoose.Types.ObjectId(idOrSlug);
   } else {
-    filter.slug = idOrSlug;
+    matchFilter.slug = idOrSlug;
   }
-  return Course.findOne(filter)
-    .populate("instructor", "firstName lastName avatar")
-    .lean()
-    .exec() as Promise<any>;
+  const docs = await Course.aggregate([
+    { $match: matchFilter },
+    { $limit: 1 },
+    {
+      $lookup: {
+        from: "users",
+        localField: "instructor",
+        foreignField: "_id",
+        as: "instructorDoc",
+        pipeline: [
+          { $project: { firstName: 1, lastName: 1, avatar: 1, _id: 1 } },
+        ],
+      },
+    },
+    {
+      $set: {
+        instructor: { $arrayElemAt: ["$instructorDoc", 0] },
+      },
+    },
+    { $project: { instructorDoc: 0 } },
+  ]).exec();
+  const doc = docs[0] || null;
+  return doc as any;
 }
 
 /** Related published courses by same category; excludes given course id. */

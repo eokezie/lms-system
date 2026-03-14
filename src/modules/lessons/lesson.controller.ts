@@ -2,10 +2,12 @@ import { Request, Response } from "express";
 import { catchAsync } from "@/utils/catchAsync";
 import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import {
+	createLessonService,
 	createMuxUpload,
 	updateLessonService,
 	verifyMuxWebhook,
 } from "./lesson.service";
+import { getUploadedFiles } from "@/helpers/multerHelper";
 
 export const updateLessonHandler = catchAsync(
 	async (req: Request, res: Response) => {
@@ -15,6 +17,19 @@ export const updateLessonHandler = catchAsync(
 			res,
 			message: "Lesson updated successfully",
 			data: { lesson },
+		});
+	},
+);
+
+export const createLessonHandler = catchAsync(
+	async (req: Request, res: Response) => {
+		const uploadedFiles = getUploadedFiles(req);
+		const result = await createLessonService(uploadedFiles, req.body);
+		sendCreated({
+			res,
+			message: "Lesson created successfully",
+			data: result?.lesson,
+			meta: result?.upload ? { ...result.upload } : undefined,
 		});
 	},
 );

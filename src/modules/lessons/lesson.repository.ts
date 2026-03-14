@@ -1,11 +1,16 @@
-import { ClientSession, Types } from "mongoose";
+import { ClientSession } from "mongoose";
 import { ILesson, Lesson } from "./lesson.model";
+import { CreateLessonDto } from "./lesson.type";
 
-export function createPreLesson(
-	courseId: Types.ObjectId,
+export function createLesson(
+	courseId: string,
+	data: CreateLessonDto,
 	session: ClientSession,
 ) {
-	return Lesson.create({ course: courseId }, { session });
+	// return Lesson.create([{ ...data, course: courseId }], { session });
+	const lesson = new Lesson({ ...data, course: courseId });
+	lesson.$locals.session = session;
+	return lesson.save({ session }).then((doc) => [doc]);
 }
 
 export function updateLessonById(

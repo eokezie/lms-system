@@ -4,6 +4,13 @@ export type TLessonType = "video" | "article" | "quiz";
 
 export type TMuxStatus = "waiting" | "preparing" | "ready" | "errored";
 
+export type FileType = {
+	fileName: string;
+	fileType: string;
+	fileSize: number;
+	fileUrl: string;
+};
+
 export interface IMuxData {
 	uploadId?: string; // Mux direct upload ID (before asset is created)
 	assetId?: string; // Mux asset ID (created after upload completes)
@@ -45,7 +52,6 @@ export interface IQuestion {
 		content: string;
 		isAnswer: boolean;
 	}[];
-
 	reason: string;
 }
 
@@ -56,6 +62,7 @@ export interface ILesson extends Document {
 	// "all lessons for course X" without going through the curriculum array
 	course: mongoose.Types.ObjectId;
 	experiencePoints: number;
+	estimatedCompletionTime: number;
 	type: TLessonType;
 	// Video lessons
 	mux?: IMuxData;
@@ -66,6 +73,9 @@ export interface ILesson extends Document {
 	questions: IQuestion[];
 	// Shared
 	description?: string; // short summary shown before the student starts
+	thumbnailImage: FileType;
+	captionFile: FileType;
+	resources: FileType[];
 	attachments: IAttachment[];
 	isFree: boolean; // preview lessons accessible without enrollment
 	createdAt: Date;
@@ -89,6 +99,7 @@ const lessonSchema = new Schema<ILesson>(
 			enum: LessonType,
 			required: false,
 		},
+		estimatedCompletionTime: { type: Number },
 		mux: {
 			uploadId: { type: String },
 			assetId: { type: String, index: true }, // index for webhook lookup
@@ -125,11 +136,60 @@ const lessonSchema = new Schema<ILesson>(
 		],
 		// Shared
 		description: { type: String, maxlength: 500 },
-		attachments: [
+		thumbnailImage: {
+			fileName: {
+				required: false,
+				type: String,
+			},
+			fileType: {
+				required: false,
+				type: String,
+			},
+			fileSize: {
+				required: false,
+				type: Number,
+			},
+			fileUrl: {
+				required: false,
+				type: String,
+			},
+		},
+		captionFile: {
+			fileName: {
+				required: false,
+				type: String,
+			},
+			fileType: {
+				required: false,
+				type: String,
+			},
+			fileSize: {
+				required: false,
+				type: Number,
+			},
+			fileUrl: {
+				required: false,
+				type: String,
+			},
+		},
+		resources: [
 			{
-				label: { type: String, required: false },
-				url: { type: String, required: false },
-				_id: false,
+				fileName: {
+					required: false,
+					type: String,
+				},
+				fileType: {
+					required: false,
+					type: String,
+				},
+				fileSize: {
+					required: false,
+					type: Number,
+				},
+				fileUrl: {
+					required: false,
+					type: String,
+				},
 			},
 		],
 		isFree: { type: Boolean, default: false },
@@ -154,25 +214,38 @@ lessonSchema.index({ course: 1, order: 1 });
  * needing to populate and sum lessons at query time.
  */
 lessonSchema.post("save", async function () {
-	await recalculateCourseDuration(this.course);
+	// $locals is a safe place to pass runtime data to hooks
+	const session: any = this.$locals.session;
+	await recalculateCourseDuration(this.course, session);
 });
 
 lessonSchema.post("findOneAndUpdate", async function (doc) {
-	if (doc) await recalculateCourseDuration(doc.course);
+	if (doc) {
+		const session: any = this.getOptions().session;
+		await recalculateCourseDuration(doc.course, session);
+	}
 });
 
 lessonSchema.post("findOneAndDelete", async function (doc) {
-	if (doc) await recalculateCourseDuration(doc.course);
+	if (doc) {
+		const session: any = this.getOptions().session;
+		await recalculateCourseDuration(doc.course, session);
+	}
 });
 
-async function recalculateCourseDuration(courseId: mongoose.Types.ObjectId) {
+async function recalculateCourseDuration(
+	courseId: mongoose.Types.ObjectId,
+	session: mongoose.ClientSession,
+) {
 	const { Course } = await import("../courses/course.model");
 	const result = await Lesson.aggregate([
 		{ $match: { course: courseId } },
 		{ $group: { _id: null, total: { $sum: "$videoDuration" } } },
-	]);
+	]).session(session ?? null);
 	const totalDuration = result[0]?.total ?? 0;
-	await Course.findByIdAndUpdate(courseId, { totalDuration });
+	await Course.findByIdAndUpdate(courseId, { totalDuration }).session(
+		session ?? null,
+	);
 }
 
 export const Lesson = mongoose.model<ILesson>("Lesson", lessonSchema);

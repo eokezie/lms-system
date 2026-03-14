@@ -1,7 +1,14 @@
 import express, { Router } from "express";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { USER_ROLES } from "../users/user.model";
-import { createMuxUploadHandler, muxWebhookHandler } from "./lesson.controller";
+import {
+	createLessonHandler,
+	createMuxUploadHandler,
+	muxWebhookHandler,
+} from "./lesson.controller";
+import { processFiles } from "@/middleware/multer.middleware";
+import { createLessonSchema } from "./lesson.validation";
+import { validate } from "@/middleware/validate";
 
 const router = Router();
 
@@ -9,8 +16,9 @@ router.post(
 	"/",
 	authenticate,
 	authorize(USER_ROLES[1], USER_ROLES[2]),
-	// validate(createCourseSchema),
-	createMuxUploadHandler,
+	processFiles,
+	validate(createLessonSchema),
+	createLessonHandler,
 );
 
 router.post(

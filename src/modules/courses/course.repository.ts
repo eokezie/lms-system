@@ -1,10 +1,16 @@
-import { ClientSession } from "mongoose";
+import mongoose, { ClientSession } from "mongoose";
 import { Course, ICourse } from "./course.model";
 import {
   CreateCourseDto,
   UpdateCourseDto,
   CoursePaginationOptions,
 } from "./course.types";
+
+const PUBLISHED = "published";
+
+function isMongoId24(s: string): boolean {
+  return /^[a-fA-F0-9]{24}$/.test(s);
+}
 
 export function findCourseById(
   id: string,
@@ -23,6 +29,57 @@ export function findCourseByIdWithInstructor(
 
 export function findCourseBySlug(slug: string): Promise<ICourse | null> {
   return Course.findOne({ slug }).exec();
+}
+
+/** Single course by id or slug for student (published only). Optimized: lean + minimal populate. */
+export function findCourseByIdOrSlugForStudent(idOrSlug: string): Promise<
+  | (ICourse & {
+      instructor?: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        avatar?: string;
+      };
+    })
+  | null
+> {
+  const filter: Record<string, unknown> = { status: PUBLISHED };
+  if (isMongoId24(idOrSlug)) {
+    filter._id = new mongoose.Types.ObjectId(idOrSlug);
+  } else {
+    filter.slug = idOrSlug;
+  }
+  return Course.findOne(filter)
+    .populate("instructor", "firstName lastName avatar")
+    .lean()
+    .exec() as Promise<any>;
+}
+
+/** Related published courses by same category; excludes given course id. */
+export function findRelatedPublishedCourses(
+  categoryId: mongoose.Types.ObjectId,
+  excludeCourseId: string,
+  limit: number,
+): Promise<
+  (ICourse & {
+    instructor?: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+    };
+  })[]
+> {
+  return Course.find({
+    category: categoryId,
+    _id: { $ne: new mongoose.Types.ObjectId(excludeCourseId) },
+    status: PUBLISHED,
+  })
+    .populate("instructor", "firstName lastName avatar")
+    .limit(limit)
+    .sort({ enrollmentCount: -1, createdAt: -1 })
+    .lean()
+    .exec() as Promise<any>;
 }
 
 function getTimeRangeFilter(
@@ -170,4 +227,16 @@ export async function findCountOfPublishedCoursesPerCategory() {
     { $match: { status: "published" } },
     { $group: { _id: "$category", count: { $sum: 1 } } },
   ]);
+}
+
+export function updateCourseRatingStats(
+  courseId: string,
+  averageRating: number,
+  totalRatings: number,
+): Promise<unknown> {
+  return Course.findByIdAndUpdate(
+    courseId,
+    { $set: { averageRating, totalRatings } },
+    { new: true },
+  ).exec();
 }

@@ -1,7 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 
-export const USER_ROLES = ["student", "instructor", "admin"] as const;
+export const USER_ROLES = [
+  "student",
+  "instructor",
+  "admin",
+  "super_admin",
+] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 type TOtp = {

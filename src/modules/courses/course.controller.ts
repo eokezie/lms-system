@@ -4,6 +4,9 @@ import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import {
   createCourseService,
   getExploreCoursesService,
+  getRelatedCoursesService,
+  getSingleCourseWithModulesAndLessons,
+  updateCoursePriceService,
 } from "./course.service";
 import { z } from "zod";
 import { getExploreCoursesQuerySchema } from "./course.validation";
@@ -29,12 +32,49 @@ export const getExploreCoursesHandler = catchAsync(
   },
 );
 
+export const getSingleCourseHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const course = await getSingleCourseWithModulesAndLessons(id);
+    sendSuccess({
+      res,
+      message: "Course fetched successfully",
+      data: course,
+    });
+  },
+);
+
+export const getRelatedCoursesHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const limit = (req.query as { limit?: number }).limit ?? 3;
+    const courses = await getRelatedCoursesService(id, limit);
+    sendSuccess({
+      res,
+      message: "Related courses fetched successfully",
+      data: courses,
+    });
+  },
+);
+
 export const createCourseHandler = catchAsync(
   async (req: Request, res: Response) => {
     const course = await createCourseService(req.body);
     sendCreated({
       res,
       message: "Course created successfully",
+      data: course,
+    });
+  },
+);
+
+export const updateCoursePriceHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const course = await updateCoursePriceService(id, req.body);
+    sendSuccess({
+      res,
+      message: "Course price updated successfully",
       data: course,
     });
   },

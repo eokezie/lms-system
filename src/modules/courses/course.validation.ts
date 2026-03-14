@@ -39,3 +39,19 @@ export const getExploreCoursesQuerySchema = z
     const { q, ...rest } = data;
     return { ...rest, search: data.search ?? q };
   });
+
+export const courseIdParamSchema = z.object({
+  id: z.string().length(24, "Invalid course ID"),
+});
+
+export const courseIdOrSlugParamSchema = z.object({
+  id: z.string().min(1, "Course id or slug required").max(200),
+});
+
+export const getRelatedCoursesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(10).optional().default(3),
+});
+
+export const updateCoursePriceSchema = z.object({
+  price: z.number().min(0, "Price must be 0 or greater"),
+});

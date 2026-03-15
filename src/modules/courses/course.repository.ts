@@ -237,6 +237,10 @@ export async function isCourseOwnedByInstructor(
 	return !!doc;
 }
 
+export async function deleteCourseById(courseId: string) {
+	await Course.deleteOne({ _id: courseId });
+}
+
 export async function findCountOfCoursesPerCategory() {
 	return await Course.aggregate([
 		{ $group: { _id: "$category", count: { $sum: 1 } } },

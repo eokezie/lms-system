@@ -5,17 +5,19 @@ import { Request } from "express";
 type MulterFiles = { [fieldname: string]: Express.Multer.File[] };
 
 export type UploadedFiles = {
-  thumbnailImage: Express.Multer.File | null;
-  captionFile: Express.Multer.File | null;
-  resources: Express.Multer.File[];
+	thumbnailImage: Express.Multer.File | null;
+	captionFile: Express.Multer.File | null;
+	resources: Express.Multer.File[];
+	coverImage: Express.Multer.File | null;
 };
 
 export function getUploadedFiles(req: Request) {
-  const files = req.files as MulterFiles;
+	const files = req.files as MulterFiles;
 
-  return {
-    thumbnailImage: files?.["thumbnailImage"]?.[0] ?? null,
-    captionFile: files?.["captionFile"]?.[0] ?? null,
-    resources: files?.["resources"] ?? [],
-  };
+	return {
+		thumbnailImage: files?.["thumbnailImage"]?.[0] ?? null,
+		captionFile: files?.["captionFile"]?.[0] ?? null,
+		resources: files?.["resources"] ?? [],
+		coverImage: files?.["coverImage"]?.[0] ?? null,
+	};
 }

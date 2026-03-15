@@ -150,6 +150,8 @@ async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
           firstName: data.firstName ?? data.name ?? "there",
           courseName: data.courseName ?? "your course",
           courseLink: data.courseLink ?? "#",
+          courseImageUrl: data.courseImageUrl as string | undefined,
+          providerName: data.providerName as string | undefined,
         }),
       );
       break;
@@ -161,10 +163,18 @@ async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
         paymentConfirmationTemplate({
           firstName: data.firstName ?? data.name ?? "there",
           courseName: data.courseName ?? "your course",
+          courseLink: data.courseLink ?? "#",
           amount: data.amount ?? "—",
           transactionId: data.transactionId ?? "—",
           paymentDate: data.paymentDate ?? "—",
-          courseLink: data.courseLink ?? "#",
+          originalPrice: data.originalPrice as string | undefined,
+          discount: data.discount as string | undefined,
+          subtotal: data.subtotal as string | undefined,
+          tax: data.tax as string | undefined,
+          total: data.total as string | undefined,
+          receiptUrl: data.receiptUrl as string | undefined,
+          courseImageUrl: data.courseImageUrl as string | undefined,
+          providerName: data.providerName as string | undefined,
         }),
       );
       break;

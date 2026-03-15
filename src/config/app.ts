@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { env } from "@/config/env";
 import { logger } from "@/utils/logger";
 import { errorMiddleware } from "@/middleware/error.middleware";
+import { stripeWebhookHandler } from "@/modules/payments/payment.controller";
 import authRoutes from "@/modules/auth/auth.routes";
 import userRoutes from "@/modules/users/user.routes";
 import passport from "@/modules/auth/passport.strategies";
@@ -15,6 +16,7 @@ import courseRoutes from "@/modules/courses/course.routes";
 import lessonRoutes from "@/modules/lessons/lesson.routes";
 import ratingRoutes from "@/modules/ratings/rating.routes";
 import muxRoutes from "@/modules/lessons/mux.routes";
+import paymentRoutes from "@/modules/payments/payment.routes";
 
 const app = express();
 
@@ -44,7 +46,13 @@ app.use(
   }),
 );
 
-app.use("/api/v1/mux", muxRoutes); // Placed before Express body parser in other to properly validate Mux webhook signature
+app.use("/api/v1/mux", muxRoutes); // Placed before Express body parser for Mux webhook signature
+
+// Stripe webhook needs raw body for signature verification (before express.json)
+const stripeWebhookRouter = express.Router();
+const rawJson = (express as any).raw({ type: "application/json" });
+stripeWebhookRouter.post("/webhook", rawJson, stripeWebhookHandler);
+app.use("/api/v1/payments", stripeWebhookRouter);
 
 // --- Body parsing ---
 app.use(express.json({ limit: "10mb" }));
@@ -82,6 +90,7 @@ app.use("/api/v1/category", categoryRoutes);
 app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/lessons", lessonRoutes);
 app.use("/api/v1/ratings", ratingRoutes);
+app.use("/api/v1/payments", paymentRoutes);
 // app.use('/api/v1/enrollments', enrollmentRoutes);
 // app.use('/api/v1/progress', progressRoutes);
 

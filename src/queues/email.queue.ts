@@ -26,9 +26,17 @@ export interface EmailJobData {
   timeLimit?: string;
   courseName?: string;
   courseLink?: string;
+  courseImageUrl?: string;
+  providerName?: string;
   amount?: string;
   transactionId?: string;
   paymentDate?: string;
+  originalPrice?: string;
+  discount?: string;
+  subtotal?: string;
+  tax?: string;
+  total?: string;
+  receiptUrl?: string;
   dashboardLink?: string;
   studentId?: string;
   userId?: string;

@@ -1,0 +1,275 @@
+import { ApiError } from "@/utils/apiError";
+import { logger } from "@/utils/logger";
+import {
+  getStripe,
+  isStripeConfigured,
+  formatAmountForStripe,
+} from "@/libs/stripe";
+import { env } from "@/config/env";
+import {
+  createPayment,
+  findPaymentByStripeSessionId,
+  findPaymentById,
+  findPaymentsPaginated,
+  updatePaymentRefund,
+  getTotalRevenue,
+  getRevenueByCategory,
+} from "./payment.repository";
+import { findCourseById } from "@/modules/courses/course.repository";
+import { findUserById } from "@/modules/users/user.repository";
+import {
+  createEnrollment,
+  findEnrollmentByStudentAndCourse,
+} from "@/modules/enrollments/enrollment.repository";
+import { incrementCourseEnrollmentCount } from "@/modules/courses/course.repository";
+import { createEmailQueue } from "@/queues/email.queue";
+import { redisConnection } from "@/config/redis";
+import Stripe from "stripe";
+
+const emailQueue = createEmailQueue(redisConnection);
+
+export function checkoutEnabled(): boolean {
+  return (
+    isStripeConfigured() &&
+    Boolean(env.STRIPE_SUCCESS_URL && env.STRIPE_CANCEL_URL)
+  );
+}
+
+export async function createCheckoutSessionService(
+  userId: string,
+  courseId: string,
+) {
+  if (!checkoutEnabled())
+    throw ApiError.badRequest("Checkout is not configured");
+  const course = await findCourseById(courseId);
+  if (!course) throw ApiError.notFound("Course not found");
+  if (course.status !== "published")
+    throw ApiError.badRequest("Course is not available for purchase");
+  const existing = await findEnrollmentByStudentAndCourse(userId, courseId);
+  if (existing && existing.status === "active")
+    throw ApiError.conflict("You are already enrolled in this course");
+
+  const price = course.price ?? 0;
+  if (price <= 0)
+    throw ApiError.badRequest("This course is free; use enroll instead");
+
+  const stripe = getStripe();
+  const currency = (env.STRIPE_CURRENCY || "ngn").toLowerCase();
+  const amount = formatAmountForStripe(price, currency);
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency,
+          unit_amount: amount,
+          product_data: {
+            name: course.title,
+            description: course.summary?.slice(0, 300) || undefined,
+            images: course.coverImage ? [course.coverImage] : undefined,
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    success_url: `${env.STRIPE_SUCCESS_URL}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: env.STRIPE_CANCEL_URL!,
+    client_reference_id: userId,
+    metadata: { courseId, userId },
+  });
+
+  return { url: session.url!, sessionId: session.id };
+}
+
+export async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (!session.client_reference_id || !session.metadata?.courseId) {
+    logger.warn(
+      { sessionId: session.id },
+      "[payment] Missing client_reference_id or metadata.courseId",
+    );
+    return;
+  }
+  const userId = session.client_reference_id;
+  const courseId = session.metadata.courseId as string;
+
+  const existingPayment = await findPaymentByStripeSessionId(session.id);
+  if (existingPayment) {
+    logger.info(
+      { sessionId: session.id },
+      "[payment] Payment already recorded, skipping",
+    );
+    return;
+  }
+
+  const amountTotal = session.amount_total ?? 0;
+  const currency = (session.currency ?? "ngn").toLowerCase();
+  const amountMajor =
+    currency === "ngn" || currency === "jpy" ? amountTotal : amountTotal / 100;
+
+  let paymentMethodLast4: string | undefined;
+  let paymentMethodBrand: string | undefined;
+  let receiptUrl: string | undefined;
+  let stripePaymentIntentId: string | undefined;
+
+  const stripe = getStripe();
+  if (session.payment_intent) {
+    const piId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : (session.payment_intent as Stripe.PaymentIntent).id;
+    stripePaymentIntentId = piId;
+    try {
+      const pi = await stripe.paymentIntents.retrieve(piId, {
+        expand: ["latest_charge"],
+      });
+      const charge = pi.latest_charge as Stripe.Charge | undefined;
+      if (charge?.receipt_url) receiptUrl = charge.receipt_url;
+      const pm = pi.payment_method;
+      if (pm && typeof pm === "object" && pm.type === "card" && pm.card) {
+        paymentMethodLast4 = (pm.card as { last4?: string }).last4;
+        paymentMethodBrand = (pm.card as { brand?: string }).brand;
+      }
+    } catch (e) {
+      logger.warn(
+        { err: e, paymentIntentId: piId },
+        "[payment] Could not retrieve payment intent details",
+      );
+    }
+  }
+
+  const payment = await createPayment({
+    studentId: userId,
+    courseId,
+    amount: amountMajor,
+    currency,
+    status: "succeeded",
+    stripeSessionId: session.id,
+    stripePaymentIntentId,
+    paymentMethodLast4,
+    paymentMethodBrand,
+    receiptUrl,
+    originalPrice: amountMajor,
+    paidAt: new Date(),
+  });
+
+  await createEnrollment(userId, courseId, payment._id.toString());
+  await incrementCourseEnrollmentCount(courseId);
+
+  const [user, course] = await Promise.all([
+    findUserById(userId),
+    findCourseById(courseId),
+  ]);
+  const email = user?.email;
+  const courseName = course?.title ?? "Your course";
+  const courseLink = course
+    ? `${env.BACKEND_BASE_URL || ""}/courses/${course.slug || courseId}`
+    : "#";
+  const courseImageUrl = course?.coverImage;
+  const providerName = "Infinix Tech";
+  const amountFormatted = formatCurrency(amountMajor, currency);
+  const paymentDate = new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  if (email) {
+    await emailQueue.add(
+      "payment-confirmation",
+      {
+        template: "payment-confirmation",
+        email,
+        firstName: user?.firstName ?? "there",
+        courseName,
+        courseLink,
+        amount: amountFormatted,
+        transactionId: payment._id.toString(),
+        paymentDate,
+        total: amountFormatted,
+        receiptUrl: payment.receiptUrl,
+        courseImageUrl,
+        providerName,
+      },
+      { attempts: 3 },
+    );
+    await emailQueue.add(
+      "enrollment-confirmation",
+      {
+        template: "enrollment-confirmation",
+        email,
+        firstName: user?.firstName ?? "there",
+        courseName,
+        courseLink,
+        courseImageUrl,
+        providerName,
+      },
+      { attempts: 3 },
+    );
+  }
+
+  logger.info(
+    { paymentId: payment._id, courseId, userId },
+    "[payment] Payment recorded and enrollment created",
+  );
+}
+
+function formatCurrency(amount: number, currency: string): string {
+  if (currency === "ngn") return `₦${Number(amount).toLocaleString("en-NG")}`;
+  return `${currency.toUpperCase()} ${amount.toLocaleString()}`;
+}
+
+export async function listPaymentsService(page: number, limit: number) {
+  const { payments, total } = await findPaymentsPaginated(page, limit);
+  return {
+    payments,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+export async function refundPaymentService(
+  paymentId: string,
+  _adminId: string,
+): Promise<{ refunded: boolean }> {
+  const payment = await findPaymentById(paymentId);
+  if (!payment) throw ApiError.notFound("Payment not found");
+  if (payment.status === "refunded")
+    throw ApiError.badRequest("Payment is already refunded");
+  if (payment.status !== "succeeded")
+    throw ApiError.badRequest("Payment cannot be refunded");
+
+  const stripe = getStripe();
+  const paymentIntentId = payment.stripePaymentIntentId;
+  if (!paymentIntentId)
+    throw ApiError.badRequest(
+      "Payment has no Stripe PaymentIntent; cannot refund via Stripe",
+    );
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const chargeId = paymentIntent.latest_charge;
+  if (!chargeId || typeof chargeId !== "string") {
+    throw ApiError.badRequest("No charge found for this payment");
+  }
+
+  const refund = await stripe.refunds.create({ charge: chargeId });
+  await updatePaymentRefund(paymentId, new Date(), refund.id);
+  logger.info({ paymentId, refundId: refund.id }, "[payment] Payment refunded");
+  return { refunded: true };
+}
+
+export async function getPaymentStatsService() {
+  const [totalRevenue, byCategory] = await Promise.all([
+    getTotalRevenue(),
+    getRevenueByCategory(),
+  ]);
+  return {
+    totalRevenue,
+    revenueByCategory: byCategory,
+  };
+}

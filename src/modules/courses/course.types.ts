@@ -73,3 +73,13 @@ export interface ExploreCoursesQuery {
   instructorType?: InstructorTypeFilter;
   avgTimeToComplete?: AvgTimeToCompleteRange;
 }
+
+/** Admin/instructor: list draft + published courses with search, filter, sort. */
+export interface ManageCoursesQuery {
+  page?: number;
+  limit?: number;
+  category?: string;
+  search?: string;
+  status?: "draft" | "published" | "all";
+  sort?: "most_recent" | "most_enrolled" | "highest_rated";
+}

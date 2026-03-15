@@ -1,14 +1,24 @@
 import mongoose from "mongoose";
 
 import { logger } from "@/utils/logger";
-import { CreateCourseDto, ExploreCoursesQuery } from "./course.types";
+import {
+  CreateCourseDto,
+  ExploreCoursesQuery,
+  ManageCoursesQuery,
+} from "./course.types";
 import {
   createCourse,
   findCourseBySlug,
+  findCourseById,
   findCourseByIdOrSlugForStudent,
   findCoursesPaginated,
+  findCoursesForManagePaginated,
   findRelatedPublishedCourses,
   updateCourseById,
+  deleteCourseById,
+  getTotalEnrollmentCount,
+  getHighestRatedCourse,
+  isCourseOwnedByInstructor,
 } from "./course.repository";
 import { ApiError } from "@/utils/apiError";
 import { findInstructorIdsByIsInfinix } from "../users/user.repository";
@@ -84,6 +94,69 @@ export async function getRelatedCoursesService(
     limit,
   );
   return related;
+}
+
+export async function getManageCoursesService(
+  query: ManageCoursesQuery,
+  userId: string,
+  userRole: string,
+) {
+  const instructorId = userRole === "instructor" ? userId : undefined;
+  return findCoursesForManagePaginated(query, instructorId);
+}
+
+export async function getCourseStatsService() {
+  const [totalEnrollment, highestRatedCourse] = await Promise.all([
+    getTotalEnrollmentCount(),
+    getHighestRatedCourse(),
+  ]);
+  return { totalEnrollment, highestRatedCourse };
+}
+
+export async function updateCourseService(
+  courseId: string,
+  userId: string,
+  userRole: string,
+  dto: Partial<{
+    title: string;
+    description: string;
+    summary: string;
+    coverImage: string;
+    category: string;
+    tags: string[];
+    price: number;
+    isFree: boolean;
+    status: (typeof CourseStatus)[keyof typeof CourseStatus];
+  }>,
+) {
+  const course = await findCourseById(courseId);
+  if (!course) throw ApiError.notFound("Course not found");
+  if (userRole === "instructor") {
+    const isOwner = await isCourseOwnedByInstructor(courseId, userId);
+    if (!isOwner) throw ApiError.forbidden("You can only edit your own course");
+  }
+  const updated = await updateCourseById(courseId, dto as any);
+  if (!updated) throw ApiError.notFound("Course not found");
+  logger.info({ courseId, userId }, "Course updated");
+  return updated;
+}
+
+export async function deleteCourseService(
+  courseId: string,
+  userId: string,
+  userRole: string,
+) {
+  const course = await findCourseById(courseId);
+  if (!course) throw ApiError.notFound("Course not found");
+  if (userRole === "instructor") {
+    const isOwner = await isCourseOwnedByInstructor(courseId, userId);
+    if (!isOwner)
+      throw ApiError.forbidden("You can only delete your own course");
+  }
+  const deleted = await deleteCourseById(courseId);
+  if (!deleted) throw ApiError.notFound("Course not found");
+  logger.info({ courseId, userId }, "Course deleted");
+  return { deleted: true };
 }
 
 export async function getExploreCoursesService(query: ExploreCoursesQuery) {

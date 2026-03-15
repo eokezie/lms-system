@@ -47,6 +47,18 @@ export function findPaymentByStripeSessionId(
   return Payment.findOne({ stripeSessionId: sessionId }).exec();
 }
 
+/** Count succeeded payments by student and course (for first_payments discount rule). */
+export function countSucceededPaymentsByStudentAndCourse(
+  studentId: string,
+  courseId: string,
+): Promise<number> {
+  return Payment.countDocuments({
+    student: new mongoose.Types.ObjectId(studentId),
+    course: new mongoose.Types.ObjectId(courseId),
+    status: "succeeded",
+  }).exec();
+}
+
 export async function findPaymentsPaginated(
   page: number,
   limit: number,
@@ -95,14 +107,32 @@ export async function getTotalRevenue(): Promise<number> {
 
 /** Revenue per category (course.category) with label. */
 export async function getRevenueByCategory(): Promise<
-  { categoryId: mongoose.Types.ObjectId; total: number; categoryLabel: string }[]
+  {
+    categoryId: mongoose.Types.ObjectId;
+    total: number;
+    categoryLabel: string;
+  }[]
 > {
   const result = await Payment.aggregate([
     { $match: { status: "succeeded" } },
-    { $lookup: { from: "courses", localField: "course", foreignField: "_id", as: "courseDoc" } },
+    {
+      $lookup: {
+        from: "courses",
+        localField: "course",
+        foreignField: "_id",
+        as: "courseDoc",
+      },
+    },
     { $unwind: "$courseDoc" },
     { $group: { _id: "$courseDoc.category", total: { $sum: "$amount" } } },
-    { $lookup: { from: "categories", localField: "_id", foreignField: "_id", as: "cat" } },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "_id",
+        foreignField: "_id",
+        as: "cat",
+      },
+    },
     { $unwind: { path: "$cat", preserveNullAndEmptyArrays: true } },
     { $sort: { total: -1 } },
     {

@@ -14,8 +14,13 @@ import {
   updatePaymentRefund,
   getTotalRevenue,
   getRevenueByCategory,
+  countSucceededPaymentsByStudentAndCourse,
 } from "./payment.repository";
 import { findCourseById } from "@/modules/courses/course.repository";
+import {
+  findActiveDiscountForCourse,
+  incrementDiscountTimesUsed,
+} from "@/modules/discounts/discount.repository";
 import { findUserById } from "@/modules/users/user.repository";
 import {
   createEnrollment,
@@ -53,9 +58,37 @@ export async function createCheckoutSessionService(
   if (price <= 0)
     throw ApiError.badRequest("This course is free; use enroll instead");
 
+  const discount = await findActiveDiscountForCourse(courseId);
+  let finalPrice = price;
+  let discountId: string | undefined;
+  if (discount) {
+    const d = discount as {
+      _id: unknown;
+      percentage: number;
+      appliesTo: string;
+    };
+    if (d.appliesTo === "first_payments") {
+      const count = await countSucceededPaymentsByStudentAndCourse(
+        userId,
+        courseId,
+      );
+      if (count >= 1) {
+        // Not eligible: already paid before
+      } else {
+        const reduction = (price * d.percentage) / 100;
+        finalPrice = Math.max(0, price - reduction);
+        discountId = d._id != null ? String(d._id) : undefined;
+      }
+    } else {
+      const reduction = (price * d.percentage) / 100;
+      finalPrice = Math.max(0, price - reduction);
+      discountId = d._id != null ? String(d._id) : undefined;
+    }
+  }
+
   const stripe = getStripe();
   const currency = (env.STRIPE_CURRENCY || "ngn").toLowerCase();
-  const amount = formatAmountForStripe(price, currency);
+  const amount = formatAmountForStripe(finalPrice, currency);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -77,7 +110,7 @@ export async function createCheckoutSessionService(
     success_url: `${env.STRIPE_SUCCESS_URL}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: env.STRIPE_CANCEL_URL!,
     client_reference_id: userId,
-    metadata: { courseId, userId },
+    metadata: { courseId, userId, ...(discountId && { discountId }) },
   });
 
   return { url: session.url!, sessionId: session.id };
@@ -209,6 +242,18 @@ export async function handleCheckoutSessionCompleted(
       },
       { attempts: 3 },
     );
+  }
+
+  const discountId = session.metadata?.discountId;
+  if (discountId) {
+    try {
+      await incrementDiscountTimesUsed(discountId);
+    } catch (e) {
+      logger.warn(
+        { discountId, err: e },
+        "[payment] Failed to increment discount usage",
+      );
+    }
   }
 
   logger.info(

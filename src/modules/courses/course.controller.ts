@@ -7,11 +7,19 @@ import {
   getRelatedCoursesService,
   getSingleCourseWithModulesAndLessons,
   updateCoursePriceService,
+  getManageCoursesService,
+  getCourseStatsService,
+  updateCourseService,
+  deleteCourseService,
 } from "./course.service";
 import { z } from "zod";
-import { getExploreCoursesQuerySchema } from "./course.validation";
+import {
+  getExploreCoursesQuerySchema,
+  getManageCoursesQuerySchema,
+} from "./course.validation";
 
 type ExploreCoursesQuery = z.infer<typeof getExploreCoursesQuerySchema>;
+type ManageCoursesQuery = z.infer<typeof getManageCoursesQuerySchema>;
 
 export const getExploreCoursesHandler = catchAsync(
   async (req: Request, res: Response) => {
@@ -28,6 +36,37 @@ export const getExploreCoursesHandler = catchAsync(
         total: result.total,
         totalPages: result.totalPages,
       },
+    });
+  },
+);
+
+export const getManageCoursesHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const query = req.query as unknown as ManageCoursesQuery;
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+    const result = await getManageCoursesService(query, userId, userRole);
+    sendSuccess({
+      res,
+      message: "Courses fetched successfully",
+      data: result.courses,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    });
+  },
+);
+
+export const getCourseStatsHandler = catchAsync(
+  async (_req: Request, res: Response) => {
+    const stats = await getCourseStatsService();
+    sendSuccess({
+      res,
+      message: "Course stats fetched successfully",
+      data: stats,
     });
   },
 );
@@ -76,6 +115,33 @@ export const updateCoursePriceHandler = catchAsync(
       res,
       message: "Course price updated successfully",
       data: course,
+    });
+  },
+);
+
+export const updateCourseHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+    const course = await updateCourseService(id, userId, userRole, req.body);
+    sendSuccess({
+      res,
+      message: "Course updated successfully",
+      data: course,
+    });
+  },
+);
+
+export const deleteCourseHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+    await deleteCourseService(id, userId, userRole);
+    sendSuccess({
+      res,
+      message: "Course deleted successfully",
     });
   },
 );

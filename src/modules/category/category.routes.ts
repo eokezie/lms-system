@@ -17,7 +17,7 @@ router.use(authenticate);
 
 router.post(
   "/",
-  authorize(USER_ROLES[2]),
+  authorize(USER_ROLES[2], USER_ROLES[3]),
   validate(createCategorySchema),
   createCategoryHandler,
 );

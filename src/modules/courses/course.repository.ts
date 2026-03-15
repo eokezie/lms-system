@@ -4,6 +4,7 @@ import {
 	CreateCourseDto,
 	UpdateCourseDto,
 	CoursePaginationOptions,
+	ManageCoursesQuery,
 } from "./course.types";
 
 const PUBLISHED = "published";
@@ -237,10 +238,6 @@ export async function isCourseOwnedByInstructor(
 	return !!doc;
 }
 
-export async function deleteCourseById(courseId: string) {
-	await Course.deleteOne({ _id: courseId });
-}
-
 export async function findCountOfCoursesPerCategory() {
 	return await Course.aggregate([
 		{ $group: { _id: "$category", count: { $sum: 1 } } },
@@ -264,4 +261,98 @@ export function updateCourseRatingStats(
 		{ $set: { averageRating, totalRatings } },
 		{ new: true },
 	).exec();
+}
+
+/** Admin/instructor: list courses (draft + published) */
+export async function findCoursesForManagePaginated(
+	options: ManageCoursesQuery,
+	instructorId?: string,
+): Promise<{
+	courses: ICourse[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}> {
+	const {
+		page = 1,
+		limit = 20,
+		category,
+		search,
+		status = "all",
+		sort = "most_recent",
+	} = options;
+	const skip = (page - 1) * limit;
+	const filter: Record<string, unknown> = {};
+	if (status !== "all") filter.status = status;
+	else filter.status = { $in: ["draft", "published"] };
+	if (instructorId)
+		filter.instructor = new mongoose.Types.ObjectId(instructorId);
+	if (category) filter.category = new mongoose.Types.ObjectId(category);
+	if (search) {
+		filter.$or = [
+			{ title: { $regex: search, $options: "i" } },
+			{ description: { $regex: search, $options: "i" } },
+			{ tags: { $in: [new RegExp(search, "i")] } },
+		];
+	}
+	let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
+	if (sort === "most_enrolled")
+		sortOption = { enrollmentCount: -1, createdAt: -1 };
+	else if (sort === "highest_rated")
+		sortOption = { averageRating: -1, totalRatings: -1, createdAt: -1 };
+
+	const [courses, total] = await Promise.all([
+		Course.find(filter)
+			.populate("instructor", "firstName lastName avatar")
+			.populate("category", "label")
+			.skip(skip)
+			.limit(limit)
+			.sort(sortOption)
+			.lean()
+			.exec(),
+		Course.countDocuments(filter),
+	]);
+	return {
+		courses: courses as unknown as ICourse[],
+		total,
+		page,
+		limit,
+		totalPages: Math.ceil(total / limit),
+	};
+}
+
+/** Sum of enrollmentCount across all courses (for admin stats). */
+export async function getTotalEnrollmentCount(): Promise<number> {
+	const result = await Course.aggregate([
+		{ $group: { _id: null, total: { $sum: "$enrollmentCount" } } },
+	]).exec();
+	return result[0]?.total ?? 0;
+}
+
+/** Single highest-rated published course (by averageRating, then totalRatings). */
+export async function getHighestRatedCourse(): Promise<
+	| (ICourse & {
+			instructor?: {
+				_id: string;
+				firstName: string;
+				lastName: string;
+				avatar?: string;
+			};
+			category?: { _id: string; label: string };
+	  })
+	| null
+> {
+	const docs = await Course.find({ status: PUBLISHED })
+		.sort({ averageRating: -1, totalRatings: -1 })
+		.limit(1)
+		.populate("instructor", "firstName lastName avatar")
+		.populate("category", "label")
+		.lean()
+		.exec();
+	return (docs[0] as any) ?? null;
+}
+
+export function deleteCourseById(id: string): Promise<ICourse | null> {
+	return Course.findByIdAndDelete(id).exec();
 }

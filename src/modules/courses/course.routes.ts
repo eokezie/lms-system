@@ -8,14 +8,20 @@ import {
 	getRelatedCoursesHandler,
 	getSingleCourseHandler,
 	updateCoursePriceHandler,
+	getManageCoursesHandler,
+	getCourseStatsHandler,
+	updateCourseHandler,
+	deleteCourseHandler,
 } from "./course.controller";
 import {
 	createCourseSchema,
 	getExploreCoursesQuerySchema,
+	getManageCoursesQuerySchema,
 	courseIdParamSchema,
 	courseIdOrSlugParamSchema,
 	getRelatedCoursesQuerySchema,
 	updateCoursePriceSchema,
+	updateCourseSchema,
 } from "./course.validation";
 import ratingRoutes from "../ratings/rating.routes";
 import { processFiles } from "@/middleware/multer.middleware";
@@ -31,6 +37,17 @@ router.get(
 	getExploreCoursesHandler,
 );
 router.get(
+	"/manage",
+	authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+	validate(getManageCoursesQuerySchema, "query"),
+	getManageCoursesHandler,
+);
+router.get(
+	"/stats",
+	authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+	getCourseStatsHandler,
+);
+router.get(
 	"/:id/related",
 	validate(courseIdOrSlugParamSchema, "params"),
 	validate(getRelatedCoursesQuerySchema, "query"),
@@ -44,7 +61,7 @@ router.get(
 router.use("/:id/ratings", ratingRoutes);
 router.post(
 	"/",
-	authorize(USER_ROLES[1], USER_ROLES[2]),
+	authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
 	processFiles,
 	validate(createCourseSchema),
 	createCourseHandler,
@@ -55,6 +72,19 @@ router.patch(
 	validate(courseIdParamSchema, "params"),
 	validate(updateCoursePriceSchema),
 	updateCoursePriceHandler,
+);
+router.patch(
+	"/:id",
+	authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+	validate(courseIdParamSchema, "params"),
+	validate(updateCourseSchema),
+	updateCourseHandler,
+);
+router.delete(
+	"/:id",
+	authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+	validate(courseIdParamSchema, "params"),
+	deleteCourseHandler,
 );
 
 export default router;

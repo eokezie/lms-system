@@ -4,6 +4,7 @@ import {
 	InstructorTypeFilter,
 	AvgTimeToCompleteRange,
 } from "./course.types";
+import { CourseStatus } from "./course.model";
 
 export const createCourseSchema = z.object({
 	instructorId: z.string().min(24),
@@ -57,4 +58,32 @@ export const getRelatedCoursesQuerySchema = z.object({
 
 export const updateCoursePriceSchema = z.object({
 	price: z.number().min(0, "Price must be 0 or greater"),
+});
+
+const manageStatusEnum = z.enum(["draft", "published", "all"]);
+const manageSortEnum = z.enum([
+  "most_recent",
+  "most_enrolled",
+  "highest_rated",
+]);
+
+export const getManageCoursesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  category: z.string().length(24).optional(),
+  search: z.string().trim().optional(),
+  status: manageStatusEnum.optional().default("all"),
+  sort: manageSortEnum.optional().default("most_recent"),
+});
+
+export const updateCourseSchema = z.object({
+  title: z.string().trim().min(1).optional(),
+  description: z.string().optional(),
+  summary: z.string().optional(),
+  coverImage: z.string().optional(),
+  category: z.string().length(24).optional(),
+  tags: z.array(z.string()).optional(),
+  price: z.number().min(0).optional(),
+  isFree: z.boolean().optional(),
+  status: z.nativeEnum(CourseStatus).optional(),
 });

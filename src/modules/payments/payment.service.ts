@@ -98,6 +98,12 @@ export async function createCheckoutSessionService(
   const currency = (isNigeria ? "ngn" : "usd").toLowerCase();
   const amount = formatAmountForStripe(finalPrice, currency);
 
+  const imageUrl =
+    typeof course.coverImage === "string" &&
+    /^https?:\/\//i.test(course.coverImage)
+      ? course.coverImage
+      : undefined;
+
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
     payment_method_types: ["card"],
@@ -109,9 +115,7 @@ export async function createCheckoutSessionService(
           product_data: {
             name: course.title,
             description: course.summary?.slice(0, 300) || undefined,
-            images: course.coverImage
-              ? [String(course.coverImage)]
-              : undefined,
+            images: imageUrl ? [imageUrl] : undefined,
           },
         },
         quantity: 1,

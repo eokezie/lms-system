@@ -16,8 +16,14 @@ export function isStripeConfigured(): boolean {
   return Boolean(env.STRIPE_SECRET_KEY);
 }
 
-/** NGN is zero-decimal in Stripe: amount is in Naira. */
-export function formatAmountForStripe(amountNaira: number, currency: string): number {
-  const zeroDecimal = ["ngn", "jpy", "krw"].includes(currency.toLowerCase());
-  return zeroDecimal ? Math.round(amountNaira) : Math.round(amountNaira * 100);
+/**
+ * Convert a major-unit amount (e.g. 2000 NGN, 10 USD)
+ * into the minor units Stripe expects.
+ *
+ * NOTE: NGN is *not* zero-decimal in Stripe, so it must
+ * be sent as kobo (amount * 100).
+ */
+export function formatAmountForStripe(amount: number, currency: string): number {
+  const zeroDecimal = ["jpy", "krw"].includes(currency.toLowerCase());
+  return zeroDecimal ? Math.round(amount) : Math.round(amount * 100);
 }

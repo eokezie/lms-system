@@ -21,10 +21,14 @@ interface StripeCheckoutSession {
 export const createCheckoutSessionHandler = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!.userId;
-    const { courseId } = req.body as { courseId: string };
+    const { courseId, billingCountry } = req.body as {
+      courseId: string;
+      billingCountry?: string;
+    };
     const { url, sessionId } = await createCheckoutSessionService(
       userId,
       courseId,
+      billingCountry,
     );
     sendCreated({
       res,

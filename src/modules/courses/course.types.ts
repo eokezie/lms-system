@@ -19,7 +19,10 @@ export interface CreateCourseDto {
 	whatToLearn: string[] | string;
 	ctaSection: ICtaSection | string;
 	tags?: string[];
+	/** Legacy single price; prefer priceNGN/priceUSD going forward. */
 	price?: number;
+	priceNGN?: number;
+	priceUSD?: number;
 	isFree?: boolean;
 }
 
@@ -29,7 +32,10 @@ export interface UpdateCourseDto {
 	coverImage?: string;
 	category?: string;
 	tags?: string[];
+	/** Legacy single price; prefer priceNGN/priceUSD going forward. */
 	price?: number;
+	priceNGN?: number;
+	priceUSD?: number;
 	isFree?: boolean;
 	status?: CourseStatus;
 }

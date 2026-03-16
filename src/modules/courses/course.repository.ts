@@ -191,11 +191,18 @@ export function findCoursesByInstructor(
 
 export function createCourse(dto: CreateCourseDto) {
 	const { instructorId, categoryId } = dto;
+	const priceNGN = dto.priceNGN ?? dto.price ?? 0;
+	const priceUSD = dto.priceUSD ?? 0;
 	return Course.create({
 		...dto,
 		instructor: instructorId,
 		category: categoryId,
-		isFree: dto.price === 0 || dto.isFree,
+		price: priceNGN,
+		priceNGN,
+		priceUSD,
+		isFree:
+			dto.isFree === true ||
+			(priceNGN === 0 && priceUSD === 0),
 	});
 }
 

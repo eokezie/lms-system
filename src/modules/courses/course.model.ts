@@ -39,7 +39,12 @@ export interface ICourse extends Document {
 	category: mongoose.Types.ObjectId;
 	tags: string[];
 	status: ICourseStatus;
-	price: number;
+  /** Legacy single-price field (kept for backwards compatibility / filters). */
+  price: number;
+  /** Price for Nigerian students, charged in NGN. */
+  priceNGN?: number;
+  /** Price for international students, charged in USD. */
+  priceUSD?: number;
 	isFree: boolean;
 	hasDownloadableResources: boolean;
 	hasQuizzes: boolean;
@@ -116,7 +121,9 @@ const courseSchema = new Schema<ICourse>(
 			default: CourseStatus.draft,
 			index: true,
 		},
-		price: { type: Number, default: 0, min: 0 },
+    price: { type: Number, default: 0, min: 0 },
+    priceNGN: { type: Number, default: 0, min: 0 },
+    priceUSD: { type: Number, default: 0, min: 0 },
 		isFree: { type: Boolean, default: true },
 		hasDownloadableResources: { type: Boolean, default: true },
 		hasQuizzes: { type: Boolean, default: true },
@@ -159,6 +166,10 @@ courseSchema.pre("validate", function (next) {
 			.replace(/[^a-z0-9]+/g, "-")
 			.replace(/^-+|-+$/g, "");
 	}
+  // Keep isFree in sync with regional prices: free only when both are zero.
+  const priceNGN = (this as any).priceNGN ?? (this as any).price ?? 0;
+  const priceUSD = (this as any).priceUSD ?? 0;
+  (this as any).isFree = priceNGN === 0 && priceUSD === 0;
 	next();
 });
 

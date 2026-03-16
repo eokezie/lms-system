@@ -43,6 +43,7 @@ export function checkoutEnabled(): boolean {
 export async function createCheckoutSessionService(
   userId: string,
   courseId: string,
+  billingCountry?: string,
 ) {
   if (!checkoutEnabled())
     throw ApiError.badRequest("Checkout is not configured");
@@ -54,7 +55,14 @@ export async function createCheckoutSessionService(
   if (existing && existing.status === "active")
     throw ApiError.conflict("You are already enrolled in this course");
 
-  const price = course.price ?? 0;
+  // Decide which regional price & currency to use based on billing country.
+  const isNigeria =
+    (billingCountry || "").toUpperCase() === "NG";
+  const priceNGN =
+    (course as any).priceNGN != null ? (course as any).priceNGN : course.price ?? 0;
+  const priceUSD = (course as any).priceUSD ?? 0;
+
+  const price = isNigeria ? priceNGN : priceUSD || priceNGN;
   if (price <= 0)
     throw ApiError.badRequest("This course is free; use enroll instead");
 
@@ -87,10 +95,10 @@ export async function createCheckoutSessionService(
   }
 
   const stripe = getStripe();
-  const currency = (env.STRIPE_CURRENCY || "ngn").toLowerCase();
+  const currency = (isNigeria ? "ngn" : "usd").toLowerCase();
   const amount = formatAmountForStripe(finalPrice, currency);
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
     payment_method_types: ["card"],
     line_items: [
@@ -101,7 +109,9 @@ export async function createCheckoutSessionService(
           product_data: {
             name: course.title,
             description: course.summary?.slice(0, 300) || undefined,
-            images: course.coverImage ? [course.coverImage] : undefined,
+            images: course.coverImage
+              ? [String(course.coverImage)]
+              : undefined,
           },
         },
         quantity: 1,
@@ -111,7 +121,9 @@ export async function createCheckoutSessionService(
     cancel_url: env.STRIPE_CANCEL_URL!,
     client_reference_id: userId,
     metadata: { courseId, userId, ...(discountId && { discountId }) },
-  });
+  };
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   return { url: session.url!, sessionId: session.id };
 }
@@ -201,7 +213,9 @@ export async function handleCheckoutSessionCompleted(
   const courseLink = course
     ? `${env.BACKEND_BASE_URL || ""}/courses/${course.slug || courseId}`
     : "#";
-  const courseImageUrl = course?.coverImage;
+  const courseImageUrl = course?.coverImage
+    ? String(course.coverImage)
+    : undefined;
   const providerName = "Infinix Tech";
   const amountFormatted = formatCurrency(amountMajor, currency);
   const paymentDate = new Date().toLocaleDateString("en-GB", {

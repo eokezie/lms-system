@@ -234,16 +234,40 @@ export async function createCourseService(
 
 export async function updateCoursePriceService(
 	courseId: string,
-	dto: { price: number },
+	dto: { price?: number; priceNGN?: number; priceUSD?: number },
 ) {
-	const updated = await updateCourseById(courseId, {
-		price: dto.price,
-		isFree: dto.price === 0,
-	});
-	if (!updated) throw ApiError.notFound("Course not found");
+	const course = await findCourseById(courseId);
+	if (!course) throw ApiError.notFound("Course not found");
+
+	if (dto.price !== undefined) {
+		course.price = dto.price;
+		// If regional NGN price is not explicitly provided, sync it with legacy price.
+		if (dto.priceNGN === undefined && (course as any).priceNGN == null) {
+			(course as any).priceNGN = dto.price;
+		}
+	}
+	if (dto.priceNGN !== undefined) {
+		(course as any).priceNGN = dto.priceNGN;
+		// Keep legacy price in sync with NGN by default.
+		course.price = dto.priceNGN;
+	}
+	if (dto.priceUSD !== undefined) {
+		(course as any).priceUSD = dto.priceUSD;
+	}
+
+	const priceNGN = ((course as any).priceNGN ?? course.price ?? 0) as number;
+	const priceUSD = ((course as any).priceUSD ?? 0) as number;
+	course.isFree = priceNGN === 0 && priceUSD === 0;
+
+	const updated = await course.save();
 
 	logger.info(
-		{ courseId: updated._id, price: updated.price },
+		{
+			courseId: updated._id,
+			price: updated.price,
+			priceNGN: (updated as any).priceNGN,
+			priceUSD: (updated as any).priceUSD,
+		},
 		"Course price updated",
 	);
 	return updated;

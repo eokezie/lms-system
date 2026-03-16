@@ -20,6 +20,10 @@ export const createCourseSchema = z.object({
 	requirements: z.string(),
 	whatToLearn: z.string(),
 	ctaSection: z.string(),
+	price: z.number().min(0).optional(),
+	priceNGN: z.number().min(0).optional(),
+	priceUSD: z.number().min(0).optional(),
+	isFree: z.boolean().optional(),
 });
 
 const difficultyEnum = z.enum(["Beginner", "Intermediate", "Advanced"]);
@@ -56,9 +60,22 @@ export const getRelatedCoursesQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(10).optional().default(3),
 });
 
-export const updateCoursePriceSchema = z.object({
-	price: z.number().min(0, "Price must be 0 or greater"),
-});
+export const updateCoursePriceSchema = z
+	.object({
+		price: z.number().min(0, "Price must be 0 or greater").optional(),
+		priceNGN: z.number().min(0, "Price must be 0 or greater").optional(),
+		priceUSD: z.number().min(0, "Price must be 0 or greater").optional(),
+	})
+	.refine(
+		(data) =>
+			data.price !== undefined ||
+			data.priceNGN !== undefined ||
+			data.priceUSD !== undefined,
+		{
+			message: "At least one price field is required",
+			path: ["price"],
+		},
+	);
 
 const manageStatusEnum = z.enum(["draft", "published", "all"]);
 const manageSortEnum = z.enum([
@@ -84,6 +101,8 @@ export const updateCourseSchema = z.object({
   category: z.string().length(24).optional(),
   tags: z.array(z.string()).optional(),
   price: z.number().min(0).optional(),
+  priceNGN: z.number().min(0).optional(),
+  priceUSD: z.number().min(0).optional(),
   isFree: z.boolean().optional(),
   status: z.nativeEnum(CourseStatus).optional(),
 });

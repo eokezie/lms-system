@@ -19,6 +19,7 @@ import muxRoutes from "@/modules/lessons/mux.routes";
 import paymentRoutes from "@/modules/payments/payment.routes";
 import enrollmentRoutes from "@/modules/enrollments/enrollment.routes";
 import discountRoutes from "@/modules/discounts/discount.routes";
+import progressRoutes from "@/modules/progress/progress.routes";
 
 const app = express();
 
@@ -61,7 +62,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // --- Passport (for OAuth) ---
-app.use(passport.initialize());
+app.use(passport.initialize() as any);
 
 // --- HTTP request logging via pino-http ---
 // Outputs structured JSON in production, pretty-printed in dev
@@ -95,7 +96,7 @@ app.use("/api/v1/ratings", ratingRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/discounts", discountRoutes);
 app.use("/api/v1/enrollments", enrollmentRoutes);
-// app.use('/api/v1/progress', progressRoutes);
+app.use("/api/v1/progress", progressRoutes);
 
 // --- 404 ---
 app.use((_req, res) => {

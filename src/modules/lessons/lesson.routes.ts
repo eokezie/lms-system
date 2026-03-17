@@ -14,7 +14,6 @@ import {
   updateLessonSchema,
 } from "./lesson.validation";
 import { validate } from "@/middleware/validate";
-import noteRoutes from "@/modules/notes/note.routes";
 
 const router = Router();
 
@@ -33,8 +32,6 @@ router.patch(
   validate(updateLessonSchema),
   updateLessonHandler,
 );
-// Nested routes: lesson notes for a specific course & lesson
-router.use("/:lessonId/notes", authenticate, noteRoutes);
 router.get(
   "/:lessonId",
   authenticate,

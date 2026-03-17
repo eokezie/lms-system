@@ -25,6 +25,7 @@ import {
   updateCourseSchema,
 } from "./course.validation";
 import ratingRoutes from "../ratings/rating.routes";
+import noteRoutes from "@/modules/notes/note.routes";
 import { processFiles } from "@/middleware/multer.middleware";
 
 const router = Router();
@@ -62,6 +63,11 @@ router.get(
 // Typed incompatibility between passport/express definitions; cast handler to any.
 router.get("/:id/player", getCoursePlayerHandler as any as any);
 router.use("/:id/ratings", ratingRoutes);
+// Lesson notes nested under course + lesson for player UI
+router.use(
+  "/:courseId/lessons/:lessonId/notes",
+  noteRoutes,
+);
 router.post(
   "/",
   authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]) as any,

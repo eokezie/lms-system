@@ -151,10 +151,15 @@ export async function findEnrollmentsForStudentPaginated(
         pipeline: [
           {
             $project: {
+              _id: 1,
               title: 1,
+              summary: 1,
               slug: 1,
               coverImage: 1,
               estimatedCompletionTime: 1,
+              totalDuration: 1,
+              averageRating: 1,
+              totalRatings: 1,
               category: 1,
               instructor: 1,
             },
@@ -165,6 +170,47 @@ export async function findEnrollmentsForStudentPaginated(
     {
       $set: {
         course: { $arrayElemAt: ["$course", 0] },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "course.instructor",
+        foreignField: "_id",
+        as: "instructor",
+        pipeline: [
+          {
+            $project: {
+              _id: 1,
+              firstName: 1,
+              lastName: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $set: {
+        instructor: { $arrayElemAt: ["$instructor", 0] },
+      },
+    },
+    {
+      $lookup: {
+        from: "lessons",
+        localField: "course._id",
+        foreignField: "course",
+        as: "lessons",
+        pipeline: [{ $project: { _id: 1 } }],
+      },
+    },
+    {
+      $set: {
+        lessonsCount: { $size: "$lessons" },
+      },
+    },
+    {
+      $project: {
+        lessons: 0,
       },
     },
   ];

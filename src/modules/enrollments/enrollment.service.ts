@@ -4,9 +4,11 @@ import {
   findActiveEnrollment,
   findEnrollmentsByStudent,
   findEnrollmentsByCourse,
+  findEnrollmentsForStudentPaginated,
   isStudentEnrolled,
   createEnrollment,
   updateEnrollmentStatus,
+  EnrollmentPaginationOptions,
 } from "./enrollment.repository";
 import {
   findCourseById,
@@ -85,4 +87,14 @@ export function checkIsEnrolled(
   courseId: string,
 ): Promise<boolean> {
   return isStudentEnrolled(studentId, courseId);
+}
+
+export async function getStudentEnrollmentsPaginated(
+  studentId: string,
+  options: Omit<EnrollmentPaginationOptions, "studentId">,
+) {
+  return findEnrollmentsForStudentPaginated({
+    ...options,
+    studentId,
+  });
 }

@@ -17,6 +17,7 @@ import lessonRoutes from "@/modules/lessons/lesson.routes";
 import ratingRoutes from "@/modules/ratings/rating.routes";
 import muxRoutes from "@/modules/lessons/mux.routes";
 import paymentRoutes from "@/modules/payments/payment.routes";
+import enrollmentRoutes from "@/modules/enrollments/enrollment.routes";
 import discountRoutes from "@/modules/discounts/discount.routes";
 
 const app = express();
@@ -93,7 +94,7 @@ app.use("/api/v1/lessons", lessonRoutes);
 app.use("/api/v1/ratings", ratingRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/discounts", discountRoutes);
-// app.use('/api/v1/enrollments', enrollmentRoutes);
+app.use("/api/v1/enrollments", enrollmentRoutes);
 // app.use('/api/v1/progress', progressRoutes);
 
 // --- 404 ---

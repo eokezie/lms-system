@@ -155,7 +155,7 @@ export async function findEnrollmentsForStudentPaginated(
               title: 1,
               summary: 1,
               slug: 1,
-              coverImage: 1,
+              coverImage: "$coverImage.fileUrl",
               estimatedCompletionTime: 1,
               totalDuration: 1,
               averageRating: 1,

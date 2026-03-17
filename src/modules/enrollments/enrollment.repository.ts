@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Enrollment, IEnrollment } from "./enrollment.model";
 
 export type EnrollmentListFilterType = "enrolled" | "completed" | "in_progress";
@@ -109,7 +110,7 @@ export async function findEnrollmentsForStudentPaginated(
   } = options;
 
   const match: Record<string, unknown> = {
-    student: studentId,
+    student: new mongoose.Types.ObjectId(studentId),
   };
 
   if (filterType === "completed") {

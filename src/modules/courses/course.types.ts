@@ -1,4 +1,4 @@
-import { CourseStatus, ICtaSection } from "./course.model";
+import { CourseStatus, ICourseModule, ICtaSection } from "./course.model";
 
 export interface CreateCourseDto {
 	instructorId: string;
@@ -18,6 +18,8 @@ export interface CreateCourseDto {
 	requirements: string[] | string;
 	whatToLearn: string[] | string;
 	ctaSection: ICtaSection | string;
+	/** Sent as JSON string from multipart clients; parsed in createCourseService. */
+	courseModules?: string | ICourseModule[];
 	tags?: string[];
 	/** Legacy single price; prefer priceNGN/priceUSD going forward. */
 	price?: number;

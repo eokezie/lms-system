@@ -24,6 +24,7 @@ export const createCourseSchema = z.object({
 	priceNGN: z.number().min(0).optional(),
 	priceUSD: z.number().min(0).optional(),
 	isFree: z.boolean().optional(),
+	courseModules: z.string().optional(),
 });
 
 const difficultyEnum = z.enum(["Beginner", "Intermediate", "Advanced"]);

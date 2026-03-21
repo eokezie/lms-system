@@ -4,6 +4,7 @@ import {
   getStripe,
   isStripeConfigured,
   formatAmountForStripe,
+  formatAmountFromStripe,
 } from "@/libs/stripe";
 import { env } from "@/config/env";
 import {
@@ -56,10 +57,11 @@ export async function createCheckoutSessionService(
     throw ApiError.conflict("You are already enrolled in this course");
 
   // Decide which regional price & currency to use based on billing country.
-  const isNigeria =
-    (billingCountry || "").toUpperCase() === "NG";
+  const isNigeria = (billingCountry || "").toUpperCase() === "NG";
   const priceNGN =
-    (course as any).priceNGN != null ? (course as any).priceNGN : course.price ?? 0;
+    (course as any).priceNGN != null
+      ? (course as any).priceNGN
+      : (course.price ?? 0);
   const priceUSD = (course as any).priceUSD ?? 0;
 
   const price = isNigeria ? priceNGN : priceUSD || priceNGN;
@@ -156,8 +158,9 @@ export async function handleCheckoutSessionCompleted(
 
   const amountTotal = session.amount_total ?? 0;
   const currency = (session.currency ?? "ngn").toLowerCase();
-  const amountMajor =
-    currency === "ngn" || currency === "jpy" ? amountTotal : amountTotal / 100;
+  // Stripe returns amounts in the smallest currency unit (minor units).
+  // We store/display major units in our DB.
+  const amountMajor = formatAmountFromStripe(amountTotal, currency);
 
   let paymentMethodLast4: string | undefined;
   let paymentMethodBrand: string | undefined;

@@ -23,7 +23,24 @@ export function isStripeConfigured(): boolean {
  * NOTE: NGN is *not* zero-decimal in Stripe, so it must
  * be sent as kobo (amount * 100).
  */
-export function formatAmountForStripe(amount: number, currency: string): number {
+export function formatAmountForStripe(
+  amount: number,
+  currency: string,
+): number {
   const zeroDecimal = ["jpy", "krw"].includes(currency.toLowerCase());
   return zeroDecimal ? Math.round(amount) : Math.round(amount * 100);
+}
+
+/**
+ * Convert a minor-unit amount from Stripe (e.g. amount_total) into major units.
+ * Example:
+ * - NGN: 20000000 (kobo) -> 200000 (naira)
+ * - USD: 1999 (cents) -> 19.99
+ */
+export function formatAmountFromStripe(
+  amountMinor: number,
+  currency: string,
+): number {
+  const zeroDecimal = ["jpy", "krw"].includes(currency.toLowerCase());
+  return zeroDecimal ? amountMinor : amountMinor / 100;
 }

@@ -17,6 +17,7 @@ import {
   getRevenueByCategory,
   countSucceededPaymentsByStudentAndCourse,
 } from "./payment.repository";
+import { createAbandonedCheckoutRecord } from "@/modules/admin-dashboard/abandoned-checkout.repository";
 import { findCourseById } from "@/modules/courses/course.repository";
 import {
   findActiveDiscountForCourse,
@@ -280,6 +281,40 @@ export async function handleCheckoutSessionCompleted(
   logger.info(
     { paymentId: payment._id, courseId, userId },
     "[payment] Payment recorded and enrollment created",
+  );
+}
+
+/** Persist abandoned checkout when Stripe sends checkout.session.expired (for analytics). */
+export async function handleCheckoutSessionExpired(
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (!session.client_reference_id || !session.metadata?.courseId) {
+    logger.warn(
+      { sessionId: session.id },
+      "[payment] checkout.session.expired missing metadata",
+    );
+    return;
+  }
+  const existingPayment = await findPaymentByStripeSessionId(session.id);
+  if (existingPayment) return;
+
+  const currency = (session.currency ?? "ngn").toLowerCase();
+  const amount = formatAmountFromStripe(
+    session.amount_total ?? 0,
+    currency,
+  );
+
+  await createAbandonedCheckoutRecord({
+    studentId: session.client_reference_id,
+    courseId: session.metadata.courseId as string,
+    stripeSessionId: session.id,
+    amount,
+    currency,
+    abandonedAt: new Date(),
+  });
+  logger.info(
+    { sessionId: session.id, courseId: session.metadata.courseId },
+    "[payment] Abandoned checkout recorded",
   );
 }
 

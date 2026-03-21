@@ -68,6 +68,9 @@ export const stripeWebhookHandler = async (
   }
   if (event.type === "checkout.session.completed") {
     await handleCheckoutSessionCompleted(event.data.object as any);
+  } else if (event.type === "checkout.session.expired") {
+    const { handleCheckoutSessionExpired } = await import("./payment.service");
+    await handleCheckoutSessionExpired(event.data.object as any);
   }
   res.json({ received: true });
 };

@@ -78,7 +78,7 @@ export const updateCoursePriceSchema = z
     },
   );
 
-const manageStatusEnum = z.enum(["draft", "in_review", "published", "all"]);
+const manageStatusEnum = z.enum(["draft", "published", "all"]);
 const manageSortEnum = z.enum([
   "most_recent",
   "most_enrolled",

@@ -272,7 +272,6 @@ export function updateCourseRatingStats(
   ).exec();
 }
 
-/** Admin/instructor: list courses (draft, in_review, published — not archived unless filtered) */
 export async function findCoursesForManagePaginated(
   options: ManageCoursesQuery,
   instructorId?: string,
@@ -294,7 +293,7 @@ export async function findCoursesForManagePaginated(
   const skip = (page - 1) * limit;
   const filter: Record<string, unknown> = {};
   if (status !== "all") filter.status = status;
-  else filter.status = { $in: ["draft", "in_review", "published"] };
+  else filter.status = { $in: ["draft", "published"] };
   if (instructorId)
     filter.instructor = new mongoose.Types.ObjectId(instructorId);
   if (category) filter.category = new mongoose.Types.ObjectId(category);

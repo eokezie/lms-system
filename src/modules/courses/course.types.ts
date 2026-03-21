@@ -83,13 +83,13 @@ export interface ExploreCoursesQuery {
   avgTimeToComplete?: AvgTimeToCompleteRange;
 }
 
-/** Admin/instructor: list draft + in_review + published courses with search, filter, sort. */
+/** Admin/instructor: list draft + published only (not in_review / archived). */
 export interface ManageCoursesQuery {
   page?: number;
   limit?: number;
   category?: string;
   search?: string;
-  status?: "draft" | "in_review" | "published" | "all";
+  status?: "draft" | "published" | "all";
   sort?: "most_recent" | "most_enrolled" | "highest_rated";
 }
 

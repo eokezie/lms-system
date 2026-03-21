@@ -22,6 +22,7 @@ import {
 } from "./course.repository";
 import { ApiError } from "@/utils/apiError";
 import { findInstructorIdsByIsInfinix } from "../users/user.repository";
+import type { UserRole } from "@/modules/users/user.model";
 import { CourseStatus, ICourseModule, ICtaSection } from "./course.model";
 import { findLessonsByIdsLean } from "../lessons/lesson.repository";
 import { UploadedFiles } from "@/helpers/multerHelper";
@@ -187,8 +188,13 @@ export async function getExploreCoursesService(query: ExploreCoursesQuery) {
 export async function createCourseService(
   dto: CreateCourseDto,
   uploadedFiles: UploadedFiles,
+  creatorRole: UserRole,
 ) {
   const { coverImage } = uploadedFiles;
+
+  /** Instructors submit for review; admins create as draft until they choose to publish. */
+  const initialStatus =
+    creatorRole === "instructor" ? CourseStatus.in_review : CourseStatus.draft;
 
   const slug = dto.title
     .toLowerCase()
@@ -215,14 +221,17 @@ export async function createCourseService(
     }
   }
 
-  const course = await createCourse({
-    ...dto,
-    slug,
-    requirements,
-    whatToLearn,
-    ctaSection,
-    courseModules,
-  });
+  const course = await createCourse(
+    {
+      ...dto,
+      slug,
+      requirements,
+      whatToLearn,
+      ctaSection,
+      courseModules,
+    },
+    initialStatus,
+  );
 
   logger.info({ courseId: course._id, title: course.title }, "Course created!");
 

@@ -1,9 +1,10 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type ICourseStatus = "draft" | "published" | "archived";
+export type ICourseStatus = "draft" | "in_review" | "published" | "archived";
 
 export enum CourseStatus {
   draft = "draft",
+  in_review = "in_review",
   published = "published",
   archived = "archived",
 }

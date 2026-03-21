@@ -114,7 +114,11 @@ export const getRelatedCoursesHandler = catchAsync(
 export const createCourseHandler = catchAsync(
   async (req: Request, res: Response) => {
     const uploadedFiles = getUploadedFiles(req);
-    const course = await createCourseService(req.body, uploadedFiles);
+    const course = await createCourseService(
+      req.body,
+      uploadedFiles,
+      req.user!.role,
+    );
     sendCreated({
       res,
       message: "Course created successfully",

@@ -8,6 +8,8 @@ import {
   getSingleCourseWithModulesAndLessons,
   updateCoursePriceService,
   getManageCoursesService,
+  getAdminSubmissionsInReviewService,
+  getAdminSubmissionsArchivedService,
   getCourseStatsService,
   updateCourseService,
   deleteCourseService,
@@ -16,12 +18,14 @@ import { z } from "zod";
 import {
   getExploreCoursesQuerySchema,
   getManageCoursesQuerySchema,
+  getSubmissionsAdminQuerySchema,
 } from "./course.validation";
 import { getUploadedFiles } from "@/helpers/multerHelper";
 import { getCoursePlayerData } from "./course.player.service";
 
 type ExploreCoursesQuery = z.infer<typeof getExploreCoursesQuerySchema>;
 type ManageCoursesQuery = z.infer<typeof getManageCoursesQuerySchema>;
+type SubmissionsAdminQuery = z.infer<typeof getSubmissionsAdminQuerySchema>;
 
 export const getExploreCoursesHandler = catchAsync(
   async (req: Request, res: Response) => {
@@ -69,6 +73,42 @@ export const getCourseStatsHandler = catchAsync(
       res,
       message: "Course stats fetched successfully",
       data: stats,
+    });
+  },
+);
+
+export const getSubmissionsInReviewHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const query = req.query as unknown as SubmissionsAdminQuery;
+    const result = await getAdminSubmissionsInReviewService(query);
+    sendSuccess({
+      res,
+      message: "In-review courses fetched successfully",
+      data: result.courses,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    });
+  },
+);
+
+export const getSubmissionsArchivedHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const query = req.query as unknown as SubmissionsAdminQuery;
+    const result = await getAdminSubmissionsArchivedService(query);
+    sendSuccess({
+      res,
+      message: "Archived courses fetched successfully",
+      data: result.courses,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
     });
   },
 );

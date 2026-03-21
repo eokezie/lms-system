@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 import { logger } from "@/utils/logger";
 import {
+  AdminSubmissionsQuery,
   CreateCourseDto,
   ExploreCoursesQuery,
   ManageCoursesQuery,
@@ -13,6 +14,7 @@ import {
   findCourseByIdOrSlugForStudent,
   findCoursesPaginated,
   findCoursesForManagePaginated,
+  findCoursesForAdminByStatusPaginated,
   findRelatedPublishedCourses,
   updateCourseById,
   deleteCourseById,
@@ -107,6 +109,18 @@ export async function getManageCoursesService(
 ) {
   const instructorId = userRole === "instructor" ? userId : undefined;
   return findCoursesForManagePaginated(query, instructorId);
+}
+
+export async function getAdminSubmissionsInReviewService(
+  query: AdminSubmissionsQuery,
+) {
+  return findCoursesForAdminByStatusPaginated("in_review", query);
+}
+
+export async function getAdminSubmissionsArchivedService(
+  query: AdminSubmissionsQuery,
+) {
+  return findCoursesForAdminByStatusPaginated("archived", query);
 }
 
 export async function getCourseStatsService() {

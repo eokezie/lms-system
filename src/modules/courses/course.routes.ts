@@ -10,6 +10,8 @@ import {
   getCoursePlayerHandler,
   updateCoursePriceHandler,
   getManageCoursesHandler,
+  getSubmissionsInReviewHandler,
+  getSubmissionsArchivedHandler,
   getCourseStatsHandler,
   updateCourseHandler,
   deleteCourseHandler,
@@ -18,6 +20,7 @@ import {
   createCourseSchema,
   getExploreCoursesQuerySchema,
   getManageCoursesQuerySchema,
+  getSubmissionsAdminQuerySchema,
   courseIdParamSchema,
   courseIdOrSlugParamSchema,
   getRelatedCoursesQuerySchema,
@@ -50,6 +53,18 @@ router.get(
   getCourseStatsHandler as any,
 );
 router.get(
+  "/submissions/in-review",
+  authorize(USER_ROLES[2], USER_ROLES[3]) as any,
+  validate(getSubmissionsAdminQuerySchema, "query") as any,
+  getSubmissionsInReviewHandler as any,
+);
+router.get(
+  "/submissions/archived",
+  authorize(USER_ROLES[2], USER_ROLES[3]) as any,
+  validate(getSubmissionsAdminQuerySchema, "query") as any,
+  getSubmissionsArchivedHandler as any,
+);
+router.get(
   "/:id/related",
   validate(courseIdOrSlugParamSchema, "params") as any,
   validate(getRelatedCoursesQuerySchema, "query") as any,
@@ -64,10 +79,7 @@ router.get(
 router.get("/:id/player", getCoursePlayerHandler as any as any);
 router.use("/:id/ratings", ratingRoutes);
 // Lesson notes nested under course + lesson for player UI
-router.use(
-  "/:courseId/lessons/:lessonId/notes",
-  noteRoutes,
-);
+router.use("/:courseId/lessons/:lessonId/notes", noteRoutes);
 router.post(
   "/",
   authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]) as any,

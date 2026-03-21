@@ -331,6 +331,60 @@ export async function findCoursesForManagePaginated(
   };
 }
 
+export async function findCoursesForAdminByStatusPaginated(
+  status: "in_review" | "archived",
+  options: Omit<ManageCoursesQuery, "status">,
+): Promise<{
+  courses: ICourse[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> {
+  const {
+    page = 1,
+    limit = 20,
+    category,
+    search,
+    sort = "most_recent",
+  } = options;
+  const skip = (page - 1) * limit;
+  const filter: Record<string, unknown> = { status };
+  if (category) filter.category = new mongoose.Types.ObjectId(category);
+  if (search) {
+    filter.$or = [
+      { title: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+      { summary: { $regex: search, $options: "i" } },
+      { tags: { $in: [new RegExp(search, "i")] } },
+    ];
+  }
+  let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
+  if (sort === "most_enrolled")
+    sortOption = { enrollmentCount: -1, createdAt: -1 };
+  else if (sort === "highest_rated")
+    sortOption = { averageRating: -1, totalRatings: -1, createdAt: -1 };
+
+  const [courses, total] = await Promise.all([
+    Course.find(filter)
+      .populate("instructor", "firstName lastName avatar email")
+      .populate("category", "label")
+      .skip(skip)
+      .limit(limit)
+      .sort(sortOption)
+      .lean()
+      .exec(),
+    Course.countDocuments(filter),
+  ]);
+  return {
+    courses: courses as unknown as ICourse[],
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
 /** Sum of enrollmentCount across all courses (for admin stats). */
 export async function getTotalEnrollmentCount(): Promise<number> {
   const result = await Course.aggregate([

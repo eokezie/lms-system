@@ -94,6 +94,14 @@ export const getManageCoursesQuerySchema = z.object({
   sort: manageSortEnum.optional().default("most_recent"),
 });
 
+export const getSubmissionsAdminQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  category: z.string().length(24).optional(),
+  search: z.string().trim().optional(),
+  sort: manageSortEnum.optional().default("most_recent"),
+});
+
 export const updateCourseSchema = z.object({
   title: z.string().trim().min(1).optional(),
   description: z.string().optional(),

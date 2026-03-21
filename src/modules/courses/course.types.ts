@@ -92,3 +92,5 @@ export interface ManageCoursesQuery {
   status?: "draft" | "in_review" | "published" | "all";
   sort?: "most_recent" | "most_enrolled" | "highest_rated";
 }
+
+export type AdminSubmissionsQuery = Omit<ManageCoursesQuery, "status">;

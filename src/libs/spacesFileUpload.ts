@@ -2,11 +2,34 @@ import AWS from "aws-sdk";
 import { env } from "@/config/env";
 
 const spacesEndpoint = new AWS.Endpoint("fra1.digitaloceanspaces.com");
-export const s3 = new AWS.S3({
-  endpoint: spacesEndpoint,
-  accessKeyId: env.DIGITAL_OCEAN_SPACES_ACCESS_KEY_ID,
-  secretAccessKey: env.DIGITAL_OCEAN_SPACES_SECRET_ACCESS_KEY,
-});
+
+let s3Instance: AWS.S3 | null = null;
+
+/** True when Spaces keys are present — uploads will work. */
+export function isSpacesConfigured(): boolean {
+  return Boolean(
+    env.DIGITAL_OCEAN_SPACES_ACCESS_KEY_ID &&
+    env.DIGITAL_OCEAN_SPACES_SECRET_ACCESS_KEY,
+  );
+}
+
+function getS3(): AWS.S3 {
+  const accessKeyId = env.DIGITAL_OCEAN_SPACES_ACCESS_KEY_ID;
+  const secretAccessKey = env.DIGITAL_OCEAN_SPACES_SECRET_ACCESS_KEY;
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "DigitalOcean Spaces is not configured. Set DIGITAL_OCEAN_SPACES_ACCESS_KEY_ID and DIGITAL_OCEAN_SPACES_SECRET_ACCESS_KEY in your environment (see DigitalOcean Spaces API keys).",
+    );
+  }
+  if (!s3Instance) {
+    s3Instance = new AWS.S3({
+      endpoint: spacesEndpoint,
+      accessKeyId,
+      secretAccessKey,
+    });
+  }
+  return s3Instance;
+}
 
 const options = { partSize: 10 * 1024 * 1024, queueSize: 10 };
 
@@ -33,6 +56,7 @@ export const uploadFile = async (
   file: Express.Multer.File,
   folderName: string,
 ) => {
+  const s3 = getS3();
   const params = {
     Bucket: `smv-spaces/LMS/${folderName}`, // Replace with your DigitalOcean Space name
     Key: buildSafeKey(file.originalname), // Unique file name in the space

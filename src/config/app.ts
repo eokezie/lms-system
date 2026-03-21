@@ -20,6 +20,7 @@ import paymentRoutes from "@/modules/payments/payment.routes";
 import enrollmentRoutes from "@/modules/enrollments/enrollment.routes";
 import discountRoutes from "@/modules/discounts/discount.routes";
 import progressRoutes from "@/modules/progress/progress.routes";
+import careerPathRoutes from "@/modules/career-paths/career-path.routes";
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use("/api/v1/ratings", ratingRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/discounts", discountRoutes);
 app.use("/api/v1/enrollments", enrollmentRoutes);
+app.use("/api/v1/career-paths", careerPathRoutes);
 app.use("/api/v1/progress", progressRoutes);
 
 // --- 404 ---

@@ -4,8 +4,12 @@ import { sendSuccess } from "@/utils/apiResponse";
 import {
   getAdminDashboardSummaryService,
   getAdminDashboardChartService,
+  getAdminDashboardTopCoursesService,
 } from "./admin-dashboard.service";
-import { dashboardChartQuerySchema } from "@/modules/admin-dashboard/admin-dashboard.validation";
+import {
+  dashboardChartQuerySchema,
+  topCoursesQuerySchema,
+} from "@/modules/admin-dashboard/admin-dashboard.validation";
 
 export const getAdminDashboardSummaryHandler = catchAsync(
   async (req: Request, res: Response) => {
@@ -32,6 +36,22 @@ export const getAdminDashboardChartHandler = catchAsync(
     sendSuccess({
       res,
       message: "Dashboard chart data fetched successfully",
+      data,
+    });
+  },
+);
+
+export const getAdminDashboardTopCoursesHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const query = topCoursesQuerySchema.parse(req.query);
+    const data = await getAdminDashboardTopCoursesService(
+      req.user!.role,
+      req.user!.userId,
+      query,
+    );
+    sendSuccess({
+      res,
+      message: "Top courses fetched successfully",
       data,
     });
   },

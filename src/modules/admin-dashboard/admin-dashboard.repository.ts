@@ -576,3 +576,127 @@ export async function getDashboardChartSeries(
     value: agg.get(bucket) ?? 0,
   }));
 }
+
+export type TopCoursesSort =
+  | "most_enrolled"
+  | "highest_rated"
+  | "highest_revenue";
+
+export type TopCourseRow = {
+  rank: number;
+  id: string;
+  title: string;
+  slug: string;
+  categoryLabel: string | null;
+  thumbnailUrl: string | null;
+  enrollmentCount: number;
+  averageRating: number;
+  totalRatings: number;
+  revenueNgn?: number;
+};
+
+function thumbnailUrlFromCourse(coverImage: unknown): string | null {
+  if (coverImage == null) return null;
+  if (typeof coverImage === "string") return coverImage;
+  if (typeof coverImage === "object" && "fileUrl" in coverImage) {
+    const url = (coverImage as { fileUrl?: string }).fileUrl;
+    return url ?? null;
+  }
+  return null;
+}
+
+export async function findTopCoursesForDashboard(
+  scope: MetricScope,
+  sort: TopCoursesSort,
+  limit: number,
+): Promise<TopCourseRow[]> {
+  if (scope?.courseIds !== undefined && scope.courseIds.length === 0) {
+    return [];
+  }
+
+  const baseFilter: Record<string, unknown> = { status: "published" };
+  if (scope?.courseIds !== undefined) {
+    baseFilter._id = { $in: scope.courseIds };
+  }
+
+  if (sort === "highest_revenue") {
+    const matchPayment: Record<string, unknown> = {
+      status: "succeeded",
+      ...NGN_MATCH,
+    };
+    if (scope?.courseIds !== undefined) {
+      matchPayment.course = { $in: scope.courseIds };
+    }
+
+    const rows = await Payment.aggregate([
+      { $match: matchPayment },
+      { $group: { _id: "$course", revenueNgn: { $sum: "$amount" } } },
+      { $sort: { revenueNgn: -1 } },
+      { $limit: Math.min(limit * 8, 100) },
+    ]).exec();
+
+    if (rows.length === 0) return [];
+
+    const courseIds = rows.map((r) => r._id);
+    const courses = await Course.find({
+      _id: { $in: courseIds },
+      status: "published",
+    })
+      .populate("category", "label")
+      .lean()
+      .exec();
+
+    const byId = new Map(courses.map((c) => [c._id.toString(), c] as const));
+
+    const out: TopCourseRow[] = [];
+    for (const row of rows) {
+      if (out.length >= limit) break;
+      const c = byId.get(String(row._id));
+      if (!c) continue;
+      const cat = c.category as { label?: string } | null | undefined;
+      out.push({
+        rank: out.length + 1,
+        id: c._id.toString(),
+        title: c.title,
+        slug: c.slug,
+        categoryLabel: cat?.label ?? null,
+        thumbnailUrl: thumbnailUrlFromCourse(c.coverImage),
+        enrollmentCount: c.enrollmentCount ?? 0,
+        averageRating: c.averageRating ?? 0,
+        totalRatings: c.totalRatings ?? 0,
+        revenueNgn: Math.round((row.revenueNgn as number) * 100) / 100,
+      });
+    }
+    return out;
+  }
+
+  const courses =
+    sort === "most_enrolled"
+      ? await Course.find(baseFilter)
+          .sort({ enrollmentCount: -1, createdAt: -1 })
+          .limit(limit)
+          .populate("category", "label")
+          .lean()
+          .exec()
+      : await Course.find(baseFilter)
+          .sort({ averageRating: -1, totalRatings: -1, enrollmentCount: -1 })
+          .limit(limit)
+          .populate("category", "label")
+          .lean()
+          .exec();
+
+  return courses.map((c, i) => {
+    const cat = c.category as { label?: string } | null | undefined;
+    return {
+      rank: i + 1,
+      id: c._id.toString(),
+      title: c.title,
+      slug: c.slug,
+      categoryLabel: cat?.label ?? null,
+      thumbnailUrl: thumbnailUrlFromCourse(c.coverImage),
+      enrollmentCount: c.enrollmentCount ?? 0,
+      averageRating: c.averageRating ?? 0,
+      totalRatings: c.totalRatings ?? 0,
+    };
+  });
+}

@@ -14,10 +14,14 @@ import {
   parseInclusiveUtcRange,
   getRevenueByCategoryNgn,
   fetchCourseIdsForInstructor,
+  findTopCoursesForDashboard,
   type DashboardChartMetric,
   type MetricScope,
 } from "./admin-dashboard.repository";
-import { dashboardChartQuerySchema } from "@/modules/admin-dashboard/admin-dashboard.validation";
+import {
+  dashboardChartQuerySchema,
+  topCoursesQuerySchema,
+} from "@/modules/admin-dashboard/admin-dashboard.validation";
 
 const MAX_CHART_RANGE_MS = 2 * 366 * 24 * 60 * 60 * 1000;
 
@@ -189,5 +193,31 @@ export async function getAdminDashboardChartService(
     startDate: start.toISOString(),
     endDate: end.toISOString(),
     series,
+  };
+}
+
+export async function getAdminDashboardTopCoursesService(
+  role: UserRole,
+  userId: string,
+  query: z.infer<typeof topCoursesQuerySchema>,
+) {
+  const scope = await resolveMetricScope(role, userId);
+  const courses = await findTopCoursesForDashboard(
+    scope,
+    query.sort,
+    query.limit,
+  );
+
+  return {
+    scope:
+      role === "instructor"
+        ? {
+            type: "instructor" as const,
+            courseCount: scope?.courseIds.length ?? 0,
+          }
+        : { type: "system" as const },
+    sort: query.sort,
+    limit: query.limit,
+    courses,
   };
 }

@@ -6,7 +6,6 @@ const router = Router();
 
 router.use(authenticate);
 
-// GET /api/dashboard
 router.get("/", getDashboardHandler);
 
 export default router;

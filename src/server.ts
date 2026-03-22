@@ -138,6 +138,7 @@
 // bootstrap();
 
 import "./config/env";
+import { registerGamificationListeners } from "./events/gamification.listeners";
 
 // Wrap everything else to catch import failures
 async function bootstrap(): Promise<void> {
@@ -168,6 +169,9 @@ async function bootstrap(): Promise<void> {
 
 		registerNotificationListeners();
 		console.log("✓ Notification listeners registered");
+
+		registerGamificationListeners();
+		console.log("✓ Gamification listeners registered");
 
 		const server = app.listen(PORT, () => {
 			console.log(

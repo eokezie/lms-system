@@ -14,11 +14,15 @@ import {
   getInstructorManagementStats,
   getApprovedInstructorsList,
   updateApprovedInstructorAccountStatus,
+  getStudentManagementStats,
+  getStudentsManagementList,
+  updateStudentAccountStatus,
 } from "./user.repository";
 import {
   CreateUserDto,
   SubmitInstructorVerificationDto,
   UpdateInstructorAccountStatusDto,
+  UpdateStudentAccountStatusDto,
   UpdateInstructorVerificationStatusDto,
   UpdateUserDto,
 } from "./user.types";
@@ -196,6 +200,31 @@ export async function updateApprovedInstructorAccountStatusService(
     throw ApiError.notFound(
       "Approved instructor not found for status update",
     );
+  }
+  return updated;
+}
+
+export async function getStudentManagementStatsService() {
+  return getStudentManagementStats();
+}
+
+export async function getStudentsManagementListService(query: {
+  search?: string;
+  sort: "most_recent" | "oldest";
+  status?: "active" | "suspended";
+  page: number;
+  limit: number;
+}) {
+  return getStudentsManagementList(query);
+}
+
+export async function updateStudentAccountStatusService(
+  studentId: string,
+  dto: UpdateStudentAccountStatusDto,
+): Promise<IUser> {
+  const updated = await updateStudentAccountStatus(studentId, dto.status);
+  if (!updated) {
+    throw ApiError.notFound("Student not found for status update");
   }
   return updated;
 }

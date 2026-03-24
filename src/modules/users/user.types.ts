@@ -2,6 +2,7 @@ import {
   IPreferences,
   InstructorAccountStatus,
   InstructorVerificationStatus,
+  StudentAccountStatus,
   UserRole,
 } from "./user.model";
 
@@ -76,6 +77,10 @@ export interface UpdateInstructorVerificationStatusDto {
 
 export interface UpdateInstructorAccountStatusDto {
   status: InstructorAccountStatus;
+}
+
+export interface UpdateStudentAccountStatusDto {
+  status: StudentAccountStatus;
 }
 
 export interface UserResponse {

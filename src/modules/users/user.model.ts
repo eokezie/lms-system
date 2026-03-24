@@ -49,6 +49,8 @@ export type InstructorVerificationStatus =
 
 export const INSTRUCTOR_ACCOUNT_STATUSES = ["verified", "suspended"] as const;
 export type InstructorAccountStatus = (typeof INSTRUCTOR_ACCOUNT_STATUSES)[number];
+export const STUDENT_ACCOUNT_STATUSES = ["active", "suspended"] as const;
+export type StudentAccountStatus = (typeof STUDENT_ACCOUNT_STATUSES)[number];
 
 export interface IInstructorVerificationApplication {
   profilePhotoUrl?: string;
@@ -101,6 +103,7 @@ export interface IUser extends Document {
   instructorProfile?: IInstructorProfile;
   instructorVerificationStatus: InstructorVerificationStatus;
   instructorAccountStatus: InstructorAccountStatus;
+  studentAccountStatus: StudentAccountStatus;
   instructorVerificationApplication?: IInstructorVerificationApplication;
   // When true, instructor is "Infinix tech"; when false/undefined, "External only"
   isInfinixInstructor?: boolean;
@@ -181,6 +184,12 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: INSTRUCTOR_ACCOUNT_STATUSES,
       default: "verified",
+      index: true,
+    },
+    studentAccountStatus: {
+      type: String,
+      enum: STUDENT_ACCOUNT_STATUSES,
+      default: "active",
       index: true,
     },
     instructorVerificationApplication: {

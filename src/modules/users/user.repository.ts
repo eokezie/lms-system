@@ -1,6 +1,9 @@
 import mongoose, { FilterQuery } from "mongoose";
 import { User, IUser } from "./user.model";
 import { Course } from "@/modules/courses/course.model";
+import { DailyActivity } from "@/modules/dailyActivity/dailyActivity.model";
+import { Enrollment } from "@/modules/enrollments/enrollment.model";
+import { LearnerProgress } from "@/modules/learnerProgress/learnerProgress.model";
 import {
   CreateUserDto,
   CreateUserFromOAuthDto,
@@ -486,6 +489,241 @@ export function updateApprovedInstructorAccountStatus(
     },
     {
       $set: { instructorAccountStatus: status },
+    },
+    { new: true, runValidators: true },
+  ).exec();
+}
+
+export async function getStudentManagementStats(): Promise<{
+  totalStudents: number;
+  activeStudents: number;
+  suspendedStudents: number;
+  activeStudentsThisWeek: number;
+  mostActiveDays: {
+    rangeStart: string;
+    rangeEnd: string;
+    days: Array<{ day: string; activityCount: number }>;
+  };
+}> {
+  const [totalStudents, activeStudents, suspendedStudents] = await Promise.all([
+    User.countDocuments({ role: "student" }).exec(),
+    User.countDocuments({
+      role: "student",
+      $or: [
+        { studentAccountStatus: "active" },
+        { studentAccountStatus: { $exists: false } },
+      ],
+    }).exec(),
+    User.countDocuments({
+      role: "student",
+      studentAccountStatus: "suspended",
+    }).exec(),
+  ]);
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const activeStudentIds = await User.distinct("_id", {
+    role: "student",
+    $or: [
+      { studentAccountStatus: "active" },
+      { studentAccountStatus: { $exists: false } },
+    ],
+  });
+
+  const weeklyActiveStudentIds = await DailyActivity.distinct("student", {
+    student: { $in: activeStudentIds },
+    date: { $gte: sevenDaysAgo },
+  });
+
+  const activeStudentsThisWeek = weeklyActiveStudentIds.length;
+
+  const weekdayAgg = await DailyActivity.aggregate<
+    { dayOfWeek: number; activityCount: number }
+  >([
+    {
+      $match: {
+        student: { $in: activeStudentIds },
+        date: { $gte: sevenDaysAgo },
+      },
+    },
+    {
+      $group: {
+        _id: { $dayOfWeek: { date: "$date", timezone: "UTC" } }, // 1=Sun..7=Sat
+        activityCount: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        dayOfWeek: "$_id",
+        activityCount: 1,
+      },
+    },
+  ]).exec();
+
+  const dayMap = new Map<number, number>();
+  for (const row of weekdayAgg) {
+    dayMap.set(row.dayOfWeek, row.activityCount);
+  }
+  const dayOrder: Array<{ name: string; dayOfWeek: number }> = [
+    { name: "Monday", dayOfWeek: 2 },
+    { name: "Tuesday", dayOfWeek: 3 },
+    { name: "Wednesday", dayOfWeek: 4 },
+    { name: "Thursday", dayOfWeek: 5 },
+    { name: "Friday", dayOfWeek: 6 },
+    { name: "Saturday", dayOfWeek: 7 },
+    { name: "Sunday", dayOfWeek: 1 },
+  ];
+
+  return {
+    totalStudents,
+    activeStudents,
+    suspendedStudents,
+    activeStudentsThisWeek,
+    mostActiveDays: {
+      rangeStart: sevenDaysAgo.toISOString(),
+      rangeEnd: new Date().toISOString(),
+      days: dayOrder.map((day) => ({
+        day: day.name,
+        activityCount: dayMap.get(day.dayOfWeek) ?? 0,
+      })),
+    },
+  };
+}
+
+export type StudentManagementListRow = {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string;
+  studentAccountStatus: "active" | "suspended";
+  createdAt: Date;
+  updatedAt: Date;
+  xpPoints: number;
+  coursesCount: number;
+  lastActivityAt: Date | null;
+};
+
+export async function getStudentsManagementList(filters: {
+  search?: string;
+  sort: "most_recent" | "oldest";
+  status?: "active" | "suspended";
+  page: number;
+  limit: number;
+}): Promise<{
+  items: StudentManagementListRow[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+  const query: FilterQuery<IUser> = { role: "student" };
+
+  if (filters.status) {
+    if (filters.status === "active") {
+      query.$or = [
+        { studentAccountStatus: "active" },
+        { studentAccountStatus: { $exists: false } },
+      ];
+    } else {
+      query.studentAccountStatus = filters.status;
+    }
+  }
+
+  if (filters.search) {
+    const searchRegex = new RegExp(filters.search, "i");
+    const searchQuery: FilterQuery<IUser> = {
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+      ],
+    };
+    if (query.$and) {
+      query.$and.push(searchQuery);
+    } else if (query.$or) {
+      const prevOr = query.$or;
+      delete query.$or;
+      query.$and = [{ $or: prevOr as any[] }, searchQuery];
+    } else {
+      Object.assign(query, searchQuery);
+    }
+  }
+
+  const skip = (filters.page - 1) * filters.limit;
+  const sortOrder = filters.sort === "oldest" ? 1 : -1;
+
+  const [students, total] = await Promise.all([
+    User.find(query)
+      .sort({ createdAt: sortOrder })
+      .skip(skip)
+      .limit(filters.limit)
+      .lean()
+      .exec(),
+    User.countDocuments(query).exec(),
+  ]);
+
+  const studentIds = students.map((s) => s._id);
+  const [enrollmentAgg, learnerProgressRows, dailyActivityAgg] = await Promise.all([
+    Enrollment.aggregate<{ _id: mongoose.Types.ObjectId; coursesCount: number }>([
+      { $match: { student: { $in: studentIds } } },
+      { $group: { _id: "$student", coursesCount: { $sum: 1 } } },
+    ]).exec(),
+    LearnerProgress.find({ student: { $in: studentIds } })
+      .select("student experience")
+      .lean()
+      .exec(),
+    DailyActivity.aggregate<{ _id: mongoose.Types.ObjectId; lastActivityAt: Date }>([
+      { $match: { student: { $in: studentIds } } },
+      { $group: { _id: "$student", lastActivityAt: { $max: "$date" } } },
+    ]).exec(),
+  ]);
+
+  const enrollmentMap = new Map(
+    enrollmentAgg.map((row) => [row._id.toString(), row.coursesCount] as const),
+  );
+  const xpMap = new Map(
+    learnerProgressRows.map((row) => [row.student.toString(), row.experience] as const),
+  );
+  const activityMap = new Map(
+    dailyActivityAgg.map((row) => [row._id.toString(), row.lastActivityAt] as const),
+  );
+
+  const items: StudentManagementListRow[] = students.map((student) => ({
+    _id: student._id.toString(),
+    firstName: student.firstName,
+    lastName: student.lastName,
+    email: student.email,
+    avatar: student.avatar,
+    studentAccountStatus: (student.studentAccountStatus ?? "active") as
+      | "active"
+      | "suspended",
+    createdAt: student.createdAt,
+    updatedAt: student.updatedAt,
+    xpPoints: xpMap.get(student._id.toString()) ?? 0,
+    coursesCount: enrollmentMap.get(student._id.toString()) ?? 0,
+    lastActivityAt: activityMap.get(student._id.toString()) ?? null,
+  }));
+
+  return {
+    items,
+    pagination: {
+      page: filters.page,
+      limit: filters.limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / filters.limit)),
+    },
+  };
+}
+
+export function updateStudentAccountStatus(
+  studentId: string,
+  status: "active" | "suspended",
+): Promise<IUser | null> {
+  return User.findOneAndUpdate(
+    {
+      _id: studentId,
+      role: "student",
+    },
+    {
+      $set: { studentAccountStatus: status },
     },
     { new: true, runValidators: true },
   ).exec();

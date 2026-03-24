@@ -13,6 +13,9 @@ import {
   getInstructorManagementStatsHandler,
   getApprovedInstructorsListHandler,
   updateApprovedInstructorAccountStatusHandler,
+  getStudentManagementStatsHandler,
+  getStudentsManagementListHandler,
+  updateStudentAccountStatusHandler,
 } from "./user.controller";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { validate } from "@/middleware/validate";
@@ -25,6 +28,8 @@ import {
   instructorDecisionSchema,
   approvedInstructorsQuerySchema,
   updateInstructorAccountStatusSchema,
+  studentsManagementQuerySchema,
+  updateStudentAccountStatusSchema,
 } from "./user.validation";
 import { USER_ROLES } from "./user.model";
 import { processInstructorVerificationFiles } from "@/middleware/instructor-verification-upload.middleware";
@@ -88,6 +93,23 @@ router.patch(
   authorize(USER_ROLES[2], USER_ROLES[3]),
   validate(updateInstructorAccountStatusSchema),
   updateApprovedInstructorAccountStatusHandler,
+);
+router.get(
+  "/student/management/stats",
+  authorize(USER_ROLES[2], USER_ROLES[3]),
+  getStudentManagementStatsHandler,
+);
+router.get(
+  "/student/management/list",
+  authorize(USER_ROLES[2], USER_ROLES[3]),
+  validate(studentsManagementQuerySchema, "query"),
+  getStudentsManagementListHandler,
+);
+router.patch(
+  "/student/management/:studentId/status",
+  authorize(USER_ROLES[2], USER_ROLES[3]),
+  validate(updateStudentAccountStatusSchema),
+  updateStudentAccountStatusHandler,
 );
 
 export default router;

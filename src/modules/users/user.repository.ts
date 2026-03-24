@@ -299,6 +299,11 @@ export async function getInstructorManagementStats(): Promise<{
   verifiedInstructors: number;
   suspendedInstructors: number;
   activeInstructorsThisWeek: number;
+  mostActiveDays: {
+    rangeStart: string;
+    rangeEnd: string;
+    days: Array<{ day: string; activityCount: number }>;
+  };
 }> {
   const [totalApprovedInstructors, verifiedInstructors, suspendedInstructors] =
     await Promise.all([
@@ -322,8 +327,18 @@ export async function getInstructorManagementStats(): Promise<{
     ]);
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const verifiedInstructorIds = await User.distinct("_id", {
+    role: "instructor",
+    instructorVerificationStatus: "approved",
+    $or: [
+      { instructorAccountStatus: "verified" },
+      { instructorAccountStatus: { $exists: false } },
+    ],
+  });
+
   const activeInstructorIds = await Course.distinct("instructor", {
     status: "published",
+    instructor: { $in: verifiedInstructorIds },
     updatedAt: { $gte: sevenDaysAgo },
   });
 
@@ -331,14 +346,66 @@ export async function getInstructorManagementStats(): Promise<{
     _id: { $in: activeInstructorIds },
     role: "instructor",
     instructorVerificationStatus: "approved",
-    instructorAccountStatus: "verified",
+    $or: [
+      { instructorAccountStatus: "verified" },
+      { instructorAccountStatus: { $exists: false } },
+    ],
   }).exec();
+
+  // Last 7 days activity grouped by weekday from course updates.
+  const weekdayAgg = await Course.aggregate<
+    { dayOfWeek: number; activityCount: number }
+  >([
+    {
+      $match: {
+        status: "published",
+        instructor: { $in: verifiedInstructorIds },
+        updatedAt: { $gte: sevenDaysAgo },
+      },
+    },
+    {
+      $group: {
+        _id: { $dayOfWeek: { date: "$updatedAt", timezone: "UTC" } }, // 1=Sun..7=Sat
+        activityCount: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        dayOfWeek: "$_id",
+        activityCount: 1,
+      },
+    },
+  ]).exec();
+
+  const dayMap = new Map<number, number>();
+  for (const row of weekdayAgg) {
+    dayMap.set(row.dayOfWeek, row.activityCount);
+  }
+  const dayOrder: Array<{ name: string; dayOfWeek: number }> = [
+    { name: "Monday", dayOfWeek: 2 },
+    { name: "Tuesday", dayOfWeek: 3 },
+    { name: "Wednesday", dayOfWeek: 4 },
+    { name: "Thursday", dayOfWeek: 5 },
+    { name: "Friday", dayOfWeek: 6 },
+    { name: "Saturday", dayOfWeek: 7 },
+    { name: "Sunday", dayOfWeek: 1 },
+  ];
+  const mostActiveDays = {
+    rangeStart: sevenDaysAgo.toISOString(),
+    rangeEnd: new Date().toISOString(),
+    days: dayOrder.map((day) => ({
+      day: day.name,
+      activityCount: dayMap.get(day.dayOfWeek) ?? 0,
+    })),
+  };
 
   return {
     totalApprovedInstructors,
     verifiedInstructors,
     suspendedInstructors,
     activeInstructorsThisWeek,
+    mostActiveDays,
   };
 }
 

@@ -1,4 +1,9 @@
-import { IPreferences, UserRole } from "./user.model";
+import {
+  IPreferences,
+  InstructorAccountStatus,
+  InstructorVerificationStatus,
+  UserRole,
+} from "./user.model";
 
 export interface CreateUserDto {
 	firstName: string;
@@ -42,6 +47,35 @@ export interface UpdateUserDto {
 	avatar?: string;
 	preferences?: IPreferences;
 	hasOnboarded?: boolean;
+}
+
+export interface SubmitInstructorVerificationDto {
+  profilePhotoUrl?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  countryOfResidence: string;
+  governmentIssuedIdType: string;
+  governmentIdFileUrl?: string;
+  primarySkill: string;
+  skillLevel: string;
+  yearsOfExperience: number;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  relevantCertificateFileUrl?: string;
+  courseTitle: string;
+  courseDescription: string;
+  sampleLessonFileUrl?: string;
+  acceptedTerms: boolean;
+}
+
+export interface UpdateInstructorVerificationStatusDto {
+  status: Extract<InstructorVerificationStatus, "approved" | "declined">;
+  reviewNote?: string;
+}
+
+export interface UpdateInstructorAccountStatusDto {
+  status: InstructorAccountStatus;
 }
 
 export interface UserResponse {

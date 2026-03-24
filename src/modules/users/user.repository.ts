@@ -1,8 +1,10 @@
 import mongoose, { FilterQuery } from "mongoose";
 import { User, IUser } from "./user.model";
+import { Course } from "@/modules/courses/course.model";
 import {
   CreateUserDto,
   CreateUserFromOAuthDto,
+  SubmitInstructorVerificationDto,
   UpdateUserDto,
 } from "./user.types";
 
@@ -186,5 +188,238 @@ export function updateUserPassword(
     userId,
     { $set: { passwordHash: newPasswordHash } },
     { new: true },
+  ).exec();
+}
+
+export function submitInstructorVerificationApplication(
+  userId: string,
+  data: SubmitInstructorVerificationDto,
+): Promise<IUser | null> {
+  return User.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        instructorVerificationStatus: "in_review",
+        instructorVerificationApplication: {
+          ...data,
+          submittedAt: new Date(),
+          reviewedAt: null,
+          reviewedBy: null,
+          reviewNote: undefined,
+        },
+      },
+    },
+    { new: true, runValidators: true },
+  ).exec();
+}
+
+export async function getInstructorReviewQueue(
+  filters: {
+    status?: "in_review" | "declined";
+    search?: string;
+    page: number;
+    limit: number;
+  },
+): Promise<{
+  items: IUser[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+  const query: FilterQuery<IUser> = { role: "instructor" };
+
+  if (filters.status) {
+    query.instructorVerificationStatus = filters.status;
+  } else {
+    query.instructorVerificationStatus = { $in: ["in_review", "declined"] };
+  }
+
+  if (filters.search) {
+    const searchRegex = new RegExp(filters.search, "i");
+    query.$or = [
+      { firstName: searchRegex },
+      { lastName: searchRegex },
+      { email: searchRegex },
+      { "instructorVerificationApplication.firstName": searchRegex },
+      { "instructorVerificationApplication.lastName": searchRegex },
+      { "instructorVerificationApplication.email": searchRegex },
+    ];
+  }
+
+  const skip = (filters.page - 1) * filters.limit;
+  const [items, total] = await Promise.all([
+    User.find(query)
+      .sort({
+        "instructorVerificationApplication.submittedAt": -1,
+        updatedAt: -1,
+      })
+      .skip(skip)
+      .limit(filters.limit)
+      .exec(),
+    User.countDocuments(query).exec(),
+  ]);
+
+  return {
+    items,
+    pagination: {
+      page: filters.page,
+      limit: filters.limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / filters.limit)),
+    },
+  };
+}
+
+export function updateInstructorVerificationStatus(
+  instructorId: string,
+  payload: {
+    status: "approved" | "declined";
+    reviewedBy: string;
+    reviewNote?: string;
+  },
+): Promise<IUser | null> {
+  const isApproved = payload.status === "approved";
+  return User.findByIdAndUpdate(
+    instructorId,
+    {
+      $set: {
+        instructorVerificationStatus: payload.status,
+        isInfinixInstructor: isApproved,
+        instructorAccountStatus: isApproved ? "verified" : "suspended",
+        "instructorVerificationApplication.reviewedAt": new Date(),
+        "instructorVerificationApplication.reviewedBy":
+          new mongoose.Types.ObjectId(payload.reviewedBy),
+        "instructorVerificationApplication.reviewNote": payload.reviewNote,
+      },
+    },
+    { new: true, runValidators: true },
+  ).exec();
+}
+
+export async function getInstructorManagementStats(): Promise<{
+  totalApprovedInstructors: number;
+  verifiedInstructors: number;
+  suspendedInstructors: number;
+  activeInstructorsThisWeek: number;
+}> {
+  const [totalApprovedInstructors, verifiedInstructors, suspendedInstructors] =
+    await Promise.all([
+      User.countDocuments({
+        role: "instructor",
+        instructorVerificationStatus: "approved",
+      }).exec(),
+      User.countDocuments({
+        role: "instructor",
+        instructorVerificationStatus: "approved",
+        $or: [
+          { instructorAccountStatus: "verified" },
+          { instructorAccountStatus: { $exists: false } },
+        ],
+      }).exec(),
+      User.countDocuments({
+        role: "instructor",
+        instructorVerificationStatus: "approved",
+        instructorAccountStatus: "suspended",
+      }).exec(),
+    ]);
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const activeInstructorIds = await Course.distinct("instructor", {
+    status: "published",
+    updatedAt: { $gte: sevenDaysAgo },
+  });
+
+  const activeInstructorsThisWeek = await User.countDocuments({
+    _id: { $in: activeInstructorIds },
+    role: "instructor",
+    instructorVerificationStatus: "approved",
+    instructorAccountStatus: "verified",
+  }).exec();
+
+  return {
+    totalApprovedInstructors,
+    verifiedInstructors,
+    suspendedInstructors,
+    activeInstructorsThisWeek,
+  };
+}
+
+export async function getApprovedInstructorsList(filters: {
+  search?: string;
+  sort: "most_recent" | "oldest";
+  status?: "verified" | "suspended";
+  page: number;
+  limit: number;
+}): Promise<{
+  items: IUser[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+  const query: FilterQuery<IUser> = {
+    role: "instructor",
+    instructorVerificationStatus: "approved",
+  };
+
+  if (filters.status) {
+    if (filters.status === "verified") {
+      query.$and = [
+        {
+          $or: [
+            { instructorAccountStatus: "verified" },
+            { instructorAccountStatus: { $exists: false } },
+          ],
+        },
+      ];
+    } else {
+      query.instructorAccountStatus = filters.status;
+    }
+  }
+
+  if (filters.search) {
+    const searchRegex = new RegExp(filters.search, "i");
+    query.$or = [
+      { firstName: searchRegex },
+      { lastName: searchRegex },
+      { email: searchRegex },
+      { "instructorVerificationApplication.firstName": searchRegex },
+      { "instructorVerificationApplication.lastName": searchRegex },
+      { "instructorVerificationApplication.email": searchRegex },
+    ];
+  }
+
+  const skip = (filters.page - 1) * filters.limit;
+  const sortOrder = filters.sort === "oldest" ? 1 : -1;
+
+  const [items, total] = await Promise.all([
+    User.find(query)
+      .sort({ createdAt: sortOrder })
+      .skip(skip)
+      .limit(filters.limit)
+      .exec(),
+    User.countDocuments(query).exec(),
+  ]);
+
+  return {
+    items,
+    pagination: {
+      page: filters.page,
+      limit: filters.limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / filters.limit)),
+    },
+  };
+}
+
+export function updateApprovedInstructorAccountStatus(
+  instructorId: string,
+  status: "verified" | "suspended",
+): Promise<IUser | null> {
+  return User.findOneAndUpdate(
+    {
+      _id: instructorId,
+      role: "instructor",
+      instructorVerificationStatus: "approved",
+    },
+    {
+      $set: { instructorAccountStatus: status },
+    },
+    { new: true, runValidators: true },
   ).exec();
 }

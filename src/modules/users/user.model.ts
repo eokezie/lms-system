@@ -38,6 +38,42 @@ export interface IInstructorProfile {
   totalStudents: number;
 }
 
+export const INSTRUCTOR_VERIFICATION_STATUSES = [
+  "not_submitted",
+  "in_review",
+  "approved",
+  "declined",
+] as const;
+export type InstructorVerificationStatus =
+  (typeof INSTRUCTOR_VERIFICATION_STATUSES)[number];
+
+export const INSTRUCTOR_ACCOUNT_STATUSES = ["verified", "suspended"] as const;
+export type InstructorAccountStatus = (typeof INSTRUCTOR_ACCOUNT_STATUSES)[number];
+
+export interface IInstructorVerificationApplication {
+  profilePhotoUrl?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  countryOfResidence?: string;
+  governmentIssuedIdType?: string;
+  governmentIdFileUrl?: string;
+  primarySkill?: string;
+  skillLevel?: string;
+  yearsOfExperience?: number;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  relevantCertificateFileUrl?: string;
+  courseTitle?: string;
+  courseDescription?: string;
+  sampleLessonFileUrl?: string;
+  acceptedTerms?: boolean;
+  submittedAt?: Date;
+  reviewedAt?: Date;
+  reviewedBy?: mongoose.Types.ObjectId;
+  reviewNote?: string;
+}
+
 export interface IStudyGoal {
   daysPerWeek: number;
   preferredDays: ("Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat")[];
@@ -63,6 +99,9 @@ export interface IUser extends Document {
   studyGoal: IStudyGoal;
   // Instructor-only extended profile
   instructorProfile?: IInstructorProfile;
+  instructorVerificationStatus: InstructorVerificationStatus;
+  instructorAccountStatus: InstructorAccountStatus;
+  instructorVerificationApplication?: IInstructorVerificationApplication;
   // When true, instructor is "Infinix tech"; when false/undefined, "External only"
   isInfinixInstructor?: boolean;
   createdAt: Date;
@@ -89,7 +128,7 @@ const userSchema = new Schema<IUser>(
     facebookId: { type: String, sparse: true, unique: true },
     role: {
       type: String,
-      enum: ["student", "instructor", "admin"],
+      enum: ["student", "instructor", "admin", "super_admin"],
       default: "student",
     },
     avatar: { type: String },
@@ -132,6 +171,41 @@ const userSchema = new Schema<IUser>(
       },
     },
     isInfinixInstructor: { type: Boolean, default: false },
+    instructorVerificationStatus: {
+      type: String,
+      enum: INSTRUCTOR_VERIFICATION_STATUSES,
+      default: "not_submitted",
+      index: true,
+    },
+    instructorAccountStatus: {
+      type: String,
+      enum: INSTRUCTOR_ACCOUNT_STATUSES,
+      default: "verified",
+      index: true,
+    },
+    instructorVerificationApplication: {
+      profilePhotoUrl: { type: String },
+      firstName: { type: String },
+      lastName: { type: String },
+      email: { type: String },
+      countryOfResidence: { type: String },
+      governmentIssuedIdType: { type: String },
+      governmentIdFileUrl: { type: String },
+      primarySkill: { type: String },
+      skillLevel: { type: String },
+      yearsOfExperience: { type: Number, min: 0 },
+      linkedinUrl: { type: String },
+      portfolioUrl: { type: String },
+      relevantCertificateFileUrl: { type: String },
+      courseTitle: { type: String },
+      courseDescription: { type: String },
+      sampleLessonFileUrl: { type: String },
+      acceptedTerms: { type: Boolean },
+      submittedAt: { type: Date },
+      reviewedAt: { type: Date },
+      reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
+      reviewNote: { type: String, maxlength: 500 },
+    },
     instructorProfile: {
       payoutEmail: { type: String },
       bio: { type: String, maxlength: 1000 },

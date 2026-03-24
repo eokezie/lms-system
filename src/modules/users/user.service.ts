@@ -8,8 +8,20 @@ import {
 	clearAllRefreshTokens,
 	userExists,
 	createUser,
+  getInstructorReviewQueue,
+  submitInstructorVerificationApplication,
+  updateInstructorVerificationStatus,
+  getInstructorManagementStats,
+  getApprovedInstructorsList,
+  updateApprovedInstructorAccountStatus,
 } from "./user.repository";
-import { CreateUserDto, UpdateUserDto } from "./user.types";
+import {
+  CreateUserDto,
+  SubmitInstructorVerificationDto,
+  UpdateInstructorAccountStatusDto,
+  UpdateInstructorVerificationStatusDto,
+  UpdateUserDto,
+} from "./user.types";
 import { ApiError } from "@/utils/apiError";
 
 export async function createUserService(dto: CreateUserDto): Promise<IUser> {
@@ -79,4 +91,111 @@ export async function changeUserPassword(
 
 	// Invalidate all sessions on password change
 	await clearAllRefreshTokens(userId);
+}
+
+export async function submitInstructorVerificationService(
+  userId: string,
+  dto: SubmitInstructorVerificationDto,
+): Promise<IUser> {
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  if (user.role !== "instructor") {
+    throw ApiError.forbidden("Only instructors can submit verification details");
+  }
+
+  const updated = await submitInstructorVerificationApplication(userId, dto);
+  if (!updated) throw ApiError.notFound("User not found");
+  return updated;
+}
+
+export async function getInstructorReviewQueueService(query: {
+  status?: "in_review" | "declined";
+  search?: string;
+  page: number;
+  limit: number;
+}) {
+  const result = await getInstructorReviewQueue(query);
+  return result;
+}
+
+export async function getInstructorVerificationDetailsService(
+  instructorId: string,
+): Promise<IUser> {
+  const user = await findUserById(instructorId);
+  if (!user) throw ApiError.notFound("Instructor not found");
+  if (user.role !== "instructor") throw ApiError.badRequest("User is not an instructor");
+  return user;
+}
+
+export async function getMyInstructorVerificationService(
+  userId: string,
+): Promise<IUser> {
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  if (user.role !== "instructor") {
+    throw ApiError.forbidden("Only instructors can access verification details");
+  }
+  return user;
+}
+
+export async function reviewInstructorVerificationService(
+  reviewerId: string,
+  instructorId: string,
+  dto: UpdateInstructorVerificationStatusDto,
+): Promise<IUser> {
+  const instructor = await findUserById(instructorId);
+  if (!instructor) throw ApiError.notFound("Instructor not found");
+  if (instructor.role !== "instructor") {
+    throw ApiError.badRequest("User is not an instructor");
+  }
+  if (!instructor.instructorVerificationApplication?.submittedAt) {
+    throw ApiError.badRequest("Instructor has not submitted verification details");
+  }
+
+  const updated = await updateInstructorVerificationStatus(instructorId, {
+    status: dto.status,
+    reviewNote: dto.reviewNote,
+    reviewedBy: reviewerId,
+  });
+  if (!updated) throw ApiError.notFound("Instructor not found");
+  return updated;
+}
+
+export async function getInstructorManagementStatsService() {
+  return getInstructorManagementStats();
+}
+
+export async function getApprovedInstructorsListService(query: {
+  search?: string;
+  sort: "most_recent" | "oldest";
+  status?: "verified" | "suspended";
+  page: number;
+  limit: number;
+}) {
+  const result = await getApprovedInstructorsList(query);
+  return {
+    ...result,
+    items: result.items.map((item) => {
+      if (!item.instructorAccountStatus) {
+        item.instructorAccountStatus = "verified";
+      }
+      return item;
+    }),
+  };
+}
+
+export async function updateApprovedInstructorAccountStatusService(
+  instructorId: string,
+  dto: UpdateInstructorAccountStatusDto,
+): Promise<IUser> {
+  const updated = await updateApprovedInstructorAccountStatus(
+    instructorId,
+    dto.status,
+  );
+  if (!updated) {
+    throw ApiError.notFound(
+      "Approved instructor not found for status update",
+    );
+  }
+  return updated;
 }

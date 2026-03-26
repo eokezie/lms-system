@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "5000:5000"
+      - "5003:5000"
     container_name: "lms-api"
     env_file:
       - .env
@@ -61,7 +61,7 @@ services:
   bull-board:
     image: deadly0/bull-board
     ports:
-      - "5001:5000"
+      - "5004:5000"
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379

@@ -216,16 +216,19 @@ export function submitInstructorVerificationApplication(
   ).exec();
 }
 
-export async function getInstructorReviewQueue(
-  filters: {
-    status?: "in_review" | "declined";
-    search?: string;
+export async function getInstructorReviewQueue(filters: {
+  status?: "in_review" | "declined";
+  search?: string;
+  page: number;
+  limit: number;
+}): Promise<{
+  items: IUser[];
+  pagination: {
     page: number;
     limit: number;
-  },
-): Promise<{
-  items: IUser[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
+    total: number;
+    totalPages: number;
+  };
 }> {
   const query: FilterQuery<IUser> = { role: "instructor" };
 
@@ -356,9 +359,10 @@ export async function getInstructorManagementStats(): Promise<{
   }).exec();
 
   // Last 7 days activity grouped by weekday from course updates.
-  const weekdayAgg = await Course.aggregate<
-    { dayOfWeek: number; activityCount: number }
-  >([
+  const weekdayAgg = await Course.aggregate<{
+    dayOfWeek: number;
+    activityCount: number;
+  }>([
     {
       $match: {
         status: "published",
@@ -420,7 +424,12 @@ export async function getApprovedInstructorsList(filters: {
   limit: number;
 }): Promise<{
   items: IUser[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }> {
   const query: FilterQuery<IUser> = {
     role: "instructor",
@@ -536,9 +545,10 @@ export async function getStudentManagementStats(): Promise<{
 
   const activeStudentsThisWeek = weeklyActiveStudentIds.length;
 
-  const weekdayAgg = await DailyActivity.aggregate<
-    { dayOfWeek: number; activityCount: number }
-  >([
+  const weekdayAgg = await DailyActivity.aggregate<{
+    dayOfWeek: number;
+    activityCount: number;
+  }>([
     {
       $match: {
         student: { $in: activeStudentIds },
@@ -612,7 +622,12 @@ export async function getStudentsManagementList(filters: {
   limit: number;
 }): Promise<{
   items: StudentManagementListRow[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }> {
   const query: FilterQuery<IUser> = { role: "student" };
 
@@ -661,29 +676,40 @@ export async function getStudentsManagementList(filters: {
   ]);
 
   const studentIds = students.map((s) => s._id);
-  const [enrollmentAgg, learnerProgressRows, dailyActivityAgg] = await Promise.all([
-    Enrollment.aggregate<{ _id: mongoose.Types.ObjectId; coursesCount: number }>([
-      { $match: { student: { $in: studentIds } } },
-      { $group: { _id: "$student", coursesCount: { $sum: 1 } } },
-    ]).exec(),
-    LearnerProgress.find({ student: { $in: studentIds } })
-      .select("student experience")
-      .lean()
-      .exec(),
-    DailyActivity.aggregate<{ _id: mongoose.Types.ObjectId; lastActivityAt: Date }>([
-      { $match: { student: { $in: studentIds } } },
-      { $group: { _id: "$student", lastActivityAt: { $max: "$date" } } },
-    ]).exec(),
-  ]);
+  const [enrollmentAgg, learnerProgressRows, dailyActivityAgg] =
+    await Promise.all([
+      Enrollment.aggregate<{
+        _id: mongoose.Types.ObjectId;
+        coursesCount: number;
+      }>([
+        { $match: { student: { $in: studentIds } } },
+        { $group: { _id: "$student", coursesCount: { $sum: 1 } } },
+      ]).exec(),
+      LearnerProgress.find({ student: { $in: studentIds } })
+        .select("student experience")
+        .lean()
+        .exec(),
+      DailyActivity.aggregate<{
+        _id: mongoose.Types.ObjectId;
+        lastActivityAt: Date;
+      }>([
+        { $match: { student: { $in: studentIds } } },
+        { $group: { _id: "$student", lastActivityAt: { $max: "$date" } } },
+      ]).exec(),
+    ]);
 
   const enrollmentMap = new Map(
     enrollmentAgg.map((row) => [row._id.toString(), row.coursesCount] as const),
   );
   const xpMap = new Map(
-    learnerProgressRows.map((row) => [row.student.toString(), row.experience] as const),
+    learnerProgressRows.map(
+      (row) => [row.student.toString(), row.experience] as const,
+    ),
   );
   const activityMap = new Map(
-    dailyActivityAgg.map((row) => [row._id.toString(), row.lastActivityAt] as const),
+    dailyActivityAgg.map(
+      (row) => [row._id.toString(), row.lastActivityAt] as const,
+    ),
   );
 
   const items: StudentManagementListRow[] = students.map((student) => ({

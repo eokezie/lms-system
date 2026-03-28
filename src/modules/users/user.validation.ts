@@ -55,9 +55,19 @@ export const submitInstructorVerificationSchema = z.object({
   courseTitle: z.string().min(1).max(120).trim(),
   courseDescription: z.string().min(1).max(2000).trim(),
   sampleLessonFileUrl: z.string().url().optional().or(z.literal("")),
-  acceptedTerms: z
-    .boolean()
-    .refine((value) => value === true, "You must accept terms before submitting"),
+  acceptedTerms: z.preprocess(
+    (val) => {
+      if (val === true) return true;
+      if (typeof val === "string") {
+        const s = val.toLowerCase().trim();
+        return s === "true" || s === "1" || s === "yes" || s === "on";
+      }
+      return false;
+    },
+    z
+      .boolean()
+      .refine((value) => value === true, "You must accept terms before submitting"),
+  ),
 });
 
 export const instructorReviewQueueQuerySchema = z.object({

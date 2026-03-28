@@ -1,13 +1,13 @@
 import { logger } from "@/utils/logger";
 import { IPreferences, IUser, USER_ROLES } from "./user.model";
 import {
-	findUserById,
-	findUserByEmailWithPassword,
-	updateUserById,
-	updateUserOnboarding,
-	clearAllRefreshTokens,
-	userExists,
-	createUser,
+  findUserById,
+  findUserByEmailWithPassword,
+  updateUserById,
+  updateUserOnboarding,
+  clearAllRefreshTokens,
+  userExists,
+  createUser,
   getInstructorReviewQueue,
   submitInstructorVerificationApplication,
   updateInstructorVerificationStatus,
@@ -29,72 +29,72 @@ import {
 import { ApiError } from "@/utils/apiError";
 
 export async function createUserService(dto: CreateUserDto): Promise<IUser> {
-	if (dto.role) {
-		if (!USER_ROLES.includes(dto.role))
-			throw ApiError.badRequest("Invalid user role provided!");
-	}
-	const exists = await userExists({ email: dto.email.toLowerCase() });
-	if (exists)
-		throw ApiError.conflict("An account with this email already exists");
+  if (dto.role) {
+    if (!USER_ROLES.includes(dto.role))
+      throw ApiError.badRequest("Invalid user role provided!");
+  }
+  const exists = await userExists({ email: dto.email.toLowerCase() });
+  if (exists)
+    throw ApiError.conflict("An account with this email already exists");
 
-	const user = await createUser({
-		firstName: dto.firstName,
-		lastName: dto.lastName,
-		email: dto.email,
-		password: dto.password,
-		role: dto.role || USER_ROLES[0],
-	});
+  const user = await createUser({
+    firstName: dto.firstName,
+    lastName: dto.lastName,
+    email: dto.email,
+    password: dto.password,
+    role: dto.role || USER_ROLES[0],
+  });
 
-	logger.info({ userId: user._id }, "User registered");
-	return user;
+  logger.info({ userId: user._id }, "User registered");
+  return user;
 }
 
 export async function getUserProfile(userId: string): Promise<IUser> {
-	const user = await findUserById(userId);
-	if (!user) throw ApiError.notFound("User not found");
-	return user;
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  return user;
 }
 
 export async function updateUserProfile(
-	userId: string,
-	dto: UpdateUserDto,
+  userId: string,
+  dto: UpdateUserDto,
 ): Promise<IUser> {
-	const user = await updateUserById(userId, dto);
-	if (!user) throw ApiError.notFound("User not found");
-	return user;
+  const user = await updateUserById(userId, dto);
+  if (!user) throw ApiError.notFound("User not found");
+  return user;
 }
 
 export async function updateUserForOnboarding(
-	userId: string,
-	dto: { preferences: IPreferences },
+  userId: string,
+  dto: { preferences: IPreferences },
 ): Promise<IUser> {
-	const { preferences } = dto;
+  const { preferences } = dto;
 
-	const user = await updateUserOnboarding(userId, { preferences });
-	if (!user) throw ApiError.notFound("User not found");
+  const user = await updateUserOnboarding(userId, { preferences });
+  if (!user) throw ApiError.notFound("User not found");
 
-	return user;
+  return user;
 }
 
 export async function changeUserPassword(
-	userId: string,
-	currentPassword: string,
-	newPassword: string,
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
 ): Promise<void> {
-	const user = await findUserById(userId);
-	if (!user) throw ApiError.notFound("User not found");
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
 
-	const userWithPw = await findUserByEmailWithPassword(user.email);
-	if (!userWithPw) throw ApiError.notFound("User not found");
+  const userWithPw = await findUserByEmailWithPassword(user.email);
+  if (!userWithPw) throw ApiError.notFound("User not found");
 
-	const isMatch = await userWithPw.comparePassword(currentPassword);
-	if (!isMatch) throw ApiError.badRequest("Current password is incorrect");
+  const isMatch = await userWithPw.comparePassword(currentPassword);
+  if (!isMatch) throw ApiError.badRequest("Current password is incorrect");
 
-	userWithPw.passwordHash = newPassword; // pre-save hook re-hashes
-	await userWithPw.save();
+  userWithPw.passwordHash = newPassword; // pre-save hook re-hashes
+  await userWithPw.save();
 
-	// Invalidate all sessions on password change
-	await clearAllRefreshTokens(userId);
+  // Invalidate all sessions on password change
+  await clearAllRefreshTokens(userId);
 }
 
 export async function submitInstructorVerificationService(
@@ -104,7 +104,9 @@ export async function submitInstructorVerificationService(
   const user = await findUserById(userId);
   if (!user) throw ApiError.notFound("User not found");
   if (user.role !== "instructor") {
-    throw ApiError.forbidden("Only instructors can submit verification details");
+    throw ApiError.forbidden(
+      "Only instructors can submit verification details",
+    );
   }
 
   const updated = await submitInstructorVerificationApplication(userId, dto);
@@ -127,7 +129,8 @@ export async function getInstructorVerificationDetailsService(
 ): Promise<IUser> {
   const user = await findUserById(instructorId);
   if (!user) throw ApiError.notFound("Instructor not found");
-  if (user.role !== "instructor") throw ApiError.badRequest("User is not an instructor");
+  if (user.role !== "instructor")
+    throw ApiError.badRequest("User is not an instructor");
   return user;
 }
 
@@ -137,7 +140,9 @@ export async function getMyInstructorVerificationService(
   const user = await findUserById(userId);
   if (!user) throw ApiError.notFound("User not found");
   if (user.role !== "instructor") {
-    throw ApiError.forbidden("Only instructors can access verification details");
+    throw ApiError.forbidden(
+      "Only instructors can access verification details",
+    );
   }
   return user;
 }
@@ -153,7 +158,9 @@ export async function reviewInstructorVerificationService(
     throw ApiError.badRequest("User is not an instructor");
   }
   if (!instructor.instructorVerificationApplication?.submittedAt) {
-    throw ApiError.badRequest("Instructor has not submitted verification details");
+    throw ApiError.badRequest(
+      "Instructor has not submitted verification details",
+    );
   }
 
   const updated = await updateInstructorVerificationStatus(instructorId, {
@@ -197,9 +204,7 @@ export async function updateApprovedInstructorAccountStatusService(
     dto.status,
   );
   if (!updated) {
-    throw ApiError.notFound(
-      "Approved instructor not found for status update",
-    );
+    throw ApiError.notFound("Approved instructor not found for status update");
   }
   return updated;
 }

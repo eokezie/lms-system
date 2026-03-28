@@ -71,8 +71,7 @@ async function buildInstructorVerificationPayload(req: Request) {
     profilePhotoUrl:
       profilePhotoMeta?.fileUrl ?? cleanOptional(req.body.profilePhotoUrl),
     governmentIdFileUrl:
-      governmentIdMeta?.fileUrl ??
-      cleanOptional(req.body.governmentIdFileUrl),
+      governmentIdMeta?.fileUrl ?? cleanOptional(req.body.governmentIdFileUrl),
     relevantCertificateFileUrl:
       certificateMeta?.fileUrl ??
       cleanOptional(req.body.relevantCertificateFileUrl),
@@ -93,13 +92,13 @@ export const createUserHandler = catchAsync(
 );
 
 export const getMe = catchAsync(async (req: Request, res: Response) => {
-	const user = await getUserProfile(req.user!.userId);
-	sendSuccess({ res, data: { user } });
+  const user = await getUserProfile(req.user!.userId);
+  sendSuccess({ res, data: { user } });
 });
 
 export const updateMe = catchAsync(async (req: Request, res: Response) => {
-	const user = await updateUserProfile(req.user!.userId, req.body);
-	sendSuccess({ res, message: "Profile updated", data: { user } });
+  const user = await updateUserProfile(req.user!.userId, req.body);
+  sendSuccess({ res, message: "Profile updated", data: { user } });
 });
 
 export const changePassword = catchAsync(
@@ -120,7 +119,10 @@ export const userOnboardingHandler = catchAsync(
 export const submitInstructorVerificationHandler = catchAsync(
   async (req: Request, res: Response) => {
     const payload = await buildInstructorVerificationPayload(req);
-    const user = await submitInstructorVerificationService(req.user!.userId, payload);
+    const user = await submitInstructorVerificationService(
+      req.user!.userId,
+      payload,
+    );
     sendSuccess({
       res,
       message: "Instructor verification submitted successfully",
@@ -147,7 +149,9 @@ export const getInstructorReviewQueueHandler = catchAsync(
 
 export const getInstructorVerificationDetailsHandler = catchAsync(
   async (req: Request, res: Response) => {
-    const user = await getInstructorVerificationDetailsService(req.params.instructorId);
+    const user = await getInstructorVerificationDetailsService(
+      req.params.instructorId,
+    );
     sendSuccess({
       res,
       message: "Instructor verification details fetched successfully",

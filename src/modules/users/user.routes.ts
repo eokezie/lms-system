@@ -96,18 +96,18 @@ router.patch(
 );
 router.get(
   "/student/management/stats",
-  authorize(USER_ROLES[2], USER_ROLES[3]),
+  authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
   getStudentManagementStatsHandler,
 );
 router.get(
   "/student/management/list",
-  authorize(USER_ROLES[2], USER_ROLES[3]),
+  authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
   validate(studentsManagementQuerySchema, "query"),
   getStudentsManagementListHandler,
 );
 router.patch(
   "/student/management/:studentId/status",
-  authorize(USER_ROLES[2], USER_ROLES[3]),
+  authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
   validate(updateStudentAccountStatusSchema),
   updateStudentAccountStatusHandler,
 );

@@ -1,4 +1,7 @@
+import mongoose from "mongoose";
 import { logger } from "@/utils/logger";
+import { fetchCourseIdsForInstructor } from "@/modules/admin-dashboard/admin-dashboard.repository";
+import { Enrollment } from "@/modules/enrollments/enrollment.model";
 import { IPreferences, IUser, USER_ROLES } from "./user.model";
 import {
   findUserById,
@@ -209,24 +212,52 @@ export async function updateApprovedInstructorAccountStatusService(
   return updated;
 }
 
-export async function getStudentManagementStatsService() {
-  return getStudentManagementStats();
+export async function getStudentManagementStatsService(
+  userId: string,
+  userRole: string,
+) {
+  const instructorId = userRole === "instructor" ? userId : undefined;
+  return getStudentManagementStats(instructorId);
 }
 
-export async function getStudentsManagementListService(query: {
-  search?: string;
-  sort: "most_recent" | "oldest";
-  status?: "active" | "suspended";
-  page: number;
-  limit: number;
-}) {
-  return getStudentsManagementList(query);
+export async function getStudentsManagementListService(
+  query: {
+    search?: string;
+    sort: "most_recent" | "oldest";
+    status?: "active" | "suspended";
+    page: number;
+    limit: number;
+  },
+  userId: string,
+  userRole: string,
+) {
+  const instructorId = userRole === "instructor" ? userId : undefined;
+  return getStudentsManagementList(query, instructorId);
 }
 
 export async function updateStudentAccountStatusService(
   studentId: string,
   dto: UpdateStudentAccountStatusDto,
+  userId: string,
+  userRole: string,
 ): Promise<IUser> {
+  if (userRole === "instructor") {
+    const courseIds = await fetchCourseIdsForInstructor(userId);
+    if (courseIds.length === 0) {
+      throw ApiError.forbidden(
+        "You have no courses with enrolled students to manage",
+      );
+    }
+    const enrolled = await Enrollment.exists({
+      student: new mongoose.Types.ObjectId(studentId),
+      course: { $in: courseIds },
+    });
+    if (!enrolled) {
+      throw ApiError.forbidden(
+        "You can only update students enrolled in your courses",
+      );
+    }
+  }
   const updated = await updateStudentAccountStatus(studentId, dto.status);
   if (!updated) {
     throw ApiError.notFound("Student not found for status update");

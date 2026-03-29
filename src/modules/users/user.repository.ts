@@ -10,6 +10,7 @@ import {
   SubmitInstructorVerificationDto,
   UpdateUserDto,
 } from "./user.types";
+import { fetchCourseIdsForInstructor } from "@/modules/admin-dashboard/admin-dashboard.repository";
 
 export function findUserById(id: string): Promise<IUser | null> {
   return User.findById(id).exec();
@@ -503,7 +504,37 @@ export function updateApprovedInstructorAccountStatus(
   ).exec();
 }
 
-export async function getStudentManagementStats(): Promise<{
+const STUDENT_MANAGEMENT_DAY_ORDER: Array<{ name: string; dayOfWeek: number }> =
+  [
+    { name: "Monday", dayOfWeek: 2 },
+    { name: "Tuesday", dayOfWeek: 3 },
+    { name: "Wednesday", dayOfWeek: 4 },
+    { name: "Thursday", dayOfWeek: 5 },
+    { name: "Friday", dayOfWeek: 6 },
+    { name: "Saturday", dayOfWeek: 7 },
+    { name: "Sunday", dayOfWeek: 1 },
+  ];
+
+function emptyStudentManagementStats(now: Date, sevenDaysAgo: Date) {
+  return {
+    totalStudents: 0,
+    activeStudents: 0,
+    suspendedStudents: 0,
+    activeStudentsThisWeek: 0,
+    mostActiveDays: {
+      rangeStart: sevenDaysAgo.toISOString(),
+      rangeEnd: now.toISOString(),
+      days: STUDENT_MANAGEMENT_DAY_ORDER.map((day) => ({
+        day: day.name,
+        activityCount: 0,
+      })),
+    },
+  };
+}
+
+export async function getStudentManagementStats(
+  instructorId?: string,
+): Promise<{
   totalStudents: number;
   activeStudents: number;
   suspendedStudents: number;
@@ -514,34 +545,66 @@ export async function getStudentManagementStats(): Promise<{
     days: Array<{ day: string; activityCount: number }>;
   };
 }> {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  let studentPool: mongoose.Types.ObjectId[] | null = null;
+  let activityCourseIds: mongoose.Types.ObjectId[] | undefined;
+  if (instructorId) {
+    const courseIds = await fetchCourseIdsForInstructor(instructorId);
+    if (courseIds.length === 0) {
+      return emptyStudentManagementStats(now, sevenDaysAgo);
+    }
+    activityCourseIds = courseIds;
+    const enrolledStudentIds = await Enrollment.distinct("student", {
+      course: { $in: courseIds },
+    });
+    if (enrolledStudentIds.length === 0) {
+      return emptyStudentManagementStats(now, sevenDaysAgo);
+    }
+    studentPool = enrolledStudentIds;
+  }
+
+  const baseStudentFilter: FilterQuery<IUser> =
+    studentPool === null
+      ? { role: "student" }
+      : { role: "student", _id: { $in: studentPool } };
+
   const [totalStudents, activeStudents, suspendedStudents] = await Promise.all([
-    User.countDocuments({ role: "student" }).exec(),
+    User.countDocuments(baseStudentFilter).exec(),
     User.countDocuments({
-      role: "student",
+      ...baseStudentFilter,
       $or: [
         { studentAccountStatus: "active" },
         { studentAccountStatus: { $exists: false } },
       ],
     }).exec(),
     User.countDocuments({
-      role: "student",
+      ...baseStudentFilter,
       studentAccountStatus: "suspended",
     }).exec(),
   ]);
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const activeStudentIds = await User.distinct("_id", {
-    role: "student",
+    ...baseStudentFilter,
     $or: [
       { studentAccountStatus: "active" },
       { studentAccountStatus: { $exists: false } },
     ],
   });
 
-  const weeklyActiveStudentIds = await DailyActivity.distinct("student", {
+  const activityMatch: Record<string, unknown> = {
     student: { $in: activeStudentIds },
     date: { $gte: sevenDaysAgo },
-  });
+  };
+  if (activityCourseIds) {
+    activityMatch.coursesTouched = { $in: activityCourseIds };
+  }
+
+  const weeklyActiveStudentIds = await DailyActivity.distinct(
+    "student",
+    activityMatch,
+  );
 
   const activeStudentsThisWeek = weeklyActiveStudentIds.length;
 
@@ -550,10 +613,7 @@ export async function getStudentManagementStats(): Promise<{
     activityCount: number;
   }>([
     {
-      $match: {
-        student: { $in: activeStudentIds },
-        date: { $gte: sevenDaysAgo },
-      },
+      $match: activityMatch,
     },
     {
       $group: {
@@ -574,15 +634,6 @@ export async function getStudentManagementStats(): Promise<{
   for (const row of weekdayAgg) {
     dayMap.set(row.dayOfWeek, row.activityCount);
   }
-  const dayOrder: Array<{ name: string; dayOfWeek: number }> = [
-    { name: "Monday", dayOfWeek: 2 },
-    { name: "Tuesday", dayOfWeek: 3 },
-    { name: "Wednesday", dayOfWeek: 4 },
-    { name: "Thursday", dayOfWeek: 5 },
-    { name: "Friday", dayOfWeek: 6 },
-    { name: "Saturday", dayOfWeek: 7 },
-    { name: "Sunday", dayOfWeek: 1 },
-  ];
 
   return {
     totalStudents,
@@ -591,8 +642,8 @@ export async function getStudentManagementStats(): Promise<{
     activeStudentsThisWeek,
     mostActiveDays: {
       rangeStart: sevenDaysAgo.toISOString(),
-      rangeEnd: new Date().toISOString(),
-      days: dayOrder.map((day) => ({
+      rangeEnd: now.toISOString(),
+      days: STUDENT_MANAGEMENT_DAY_ORDER.map((day) => ({
         day: day.name,
         activityCount: dayMap.get(day.dayOfWeek) ?? 0,
       })),
@@ -614,13 +665,16 @@ export type StudentManagementListRow = {
   lastActivityAt: Date | null;
 };
 
-export async function getStudentsManagementList(filters: {
-  search?: string;
-  sort: "most_recent" | "oldest";
-  status?: "active" | "suspended";
-  page: number;
-  limit: number;
-}): Promise<{
+export async function getStudentsManagementList(
+  filters: {
+    search?: string;
+    sort: "most_recent" | "oldest";
+    status?: "active" | "suspended";
+    page: number;
+    limit: number;
+  },
+  instructorId?: string,
+): Promise<{
   items: StudentManagementListRow[];
   pagination: {
     page: number;
@@ -629,7 +683,39 @@ export async function getStudentsManagementList(filters: {
     totalPages: number;
   };
 }> {
+  let instructorCourseIds: mongoose.Types.ObjectId[] | undefined;
+
   const query: FilterQuery<IUser> = { role: "student" };
+
+  if (instructorId) {
+    instructorCourseIds = await fetchCourseIdsForInstructor(instructorId);
+    if (instructorCourseIds.length === 0) {
+      return {
+        items: [],
+        pagination: {
+          page: filters.page,
+          limit: filters.limit,
+          total: 0,
+          totalPages: 1,
+        },
+      };
+    }
+    const allowedStudentIds = await Enrollment.distinct("student", {
+      course: { $in: instructorCourseIds },
+    });
+    if (allowedStudentIds.length === 0) {
+      return {
+        items: [],
+        pagination: {
+          page: filters.page,
+          limit: filters.limit,
+          total: 0,
+          totalPages: 1,
+        },
+      };
+    }
+    query._id = { $in: allowedStudentIds };
+  }
 
   if (filters.status) {
     if (filters.status === "active") {
@@ -676,13 +762,27 @@ export async function getStudentsManagementList(filters: {
   ]);
 
   const studentIds = students.map((s) => s._id);
+  const enrollmentMatch: Record<string, unknown> = {
+    student: { $in: studentIds },
+  };
+  if (instructorCourseIds && instructorCourseIds.length > 0) {
+    enrollmentMatch.course = { $in: instructorCourseIds };
+  }
+
+  const dailyActivityMatch: Record<string, unknown> = {
+    student: { $in: studentIds },
+  };
+  if (instructorCourseIds && instructorCourseIds.length > 0) {
+    dailyActivityMatch.coursesTouched = { $in: instructorCourseIds };
+  }
+
   const [enrollmentAgg, learnerProgressRows, dailyActivityAgg] =
     await Promise.all([
       Enrollment.aggregate<{
         _id: mongoose.Types.ObjectId;
         coursesCount: number;
       }>([
-        { $match: { student: { $in: studentIds } } },
+        { $match: enrollmentMatch },
         { $group: { _id: "$student", coursesCount: { $sum: 1 } } },
       ]).exec(),
       LearnerProgress.find({ student: { $in: studentIds } })
@@ -693,7 +793,7 @@ export async function getStudentsManagementList(filters: {
         _id: mongoose.Types.ObjectId;
         lastActivityAt: Date;
       }>([
-        { $match: { student: { $in: studentIds } } },
+        { $match: dailyActivityMatch },
         { $group: { _id: "$student", lastActivityAt: { $max: "$date" } } },
       ]).exec(),
     ]);

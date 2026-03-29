@@ -229,8 +229,11 @@ export const updateApprovedInstructorAccountStatusHandler = catchAsync(
 );
 
 export const getStudentManagementStatsHandler = catchAsync(
-  async (_req: Request, res: Response) => {
-    const stats = await getStudentManagementStatsService();
+  async (req: Request, res: Response) => {
+    const stats = await getStudentManagementStatsService(
+      req.user!.userId,
+      req.user!.role,
+    );
     sendSuccess({
       res,
       message: "Student statistics fetched successfully",
@@ -241,13 +244,17 @@ export const getStudentManagementStatsHandler = catchAsync(
 
 export const getStudentsManagementListHandler = catchAsync(
   async (req: Request, res: Response) => {
-    const data = await getStudentsManagementListService({
-      search: req.query.search as string | undefined,
-      sort: req.query.sort as "most_recent" | "oldest",
-      status: req.query.status as "active" | "suspended" | undefined,
-      page: Number(req.query.page),
-      limit: Number(req.query.limit),
-    });
+    const data = await getStudentsManagementListService(
+      {
+        search: req.query.search as string | undefined,
+        sort: req.query.sort as "most_recent" | "oldest",
+        status: req.query.status as "active" | "suspended" | undefined,
+        page: Number(req.query.page),
+        limit: Number(req.query.limit),
+      },
+      req.user!.userId,
+      req.user!.role,
+    );
     sendSuccess({
       res,
       message: "Students fetched successfully",
@@ -261,6 +268,8 @@ export const updateStudentAccountStatusHandler = catchAsync(
     const user = await updateStudentAccountStatusService(
       req.params.studentId,
       req.body,
+      req.user!.userId,
+      req.user!.role,
     );
     sendSuccess({
       res,

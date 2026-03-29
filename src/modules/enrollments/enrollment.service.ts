@@ -4,6 +4,7 @@ import {
   findActiveEnrollment,
   findEnrollmentsByStudent,
   findEnrollmentsByCourse,
+  findEnrollmentsByCoursePaginated,
   findEnrollmentsForStudentPaginated,
   isStudentEnrolled,
   createEnrollment,
@@ -80,6 +81,34 @@ export async function getCourseEnrollments(
   if (!isOwner)
     throw ApiError.forbidden("Only the course instructor can view enrollments");
   return findEnrollmentsByCourse(courseId);
+}
+
+export async function getCourseEnrollmentsListService(
+  courseId: string,
+  query: {
+    page: number;
+    limit: number;
+    search?: string;
+    sort: "most_recent" | "oldest" | "progress";
+    status: "all" | "completed" | "in_progress";
+  },
+  userId: string,
+  userRole: string,
+) {
+  const course = await findCourseById(courseId);
+  if (!course) throw ApiError.notFound("Course not found");
+
+  if (userRole === "admin" || userRole === "super_admin") {
+    return findEnrollmentsByCoursePaginated(courseId, query);
+  }
+  if (userRole === "instructor") {
+    const owns = await isCourseOwnedByInstructor(courseId, userId);
+    if (!owns) {
+      throw ApiError.forbidden("You can only view enrollments for your own courses");
+    }
+    return findEnrollmentsByCoursePaginated(courseId, query);
+  }
+  throw ApiError.forbidden("Insufficient permissions");
 }
 
 export function checkIsEnrolled(

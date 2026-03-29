@@ -4,7 +4,7 @@ export interface IDiscussionThread extends Document {
   _id: Types.ObjectId;
   course: Types.ObjectId;
   lesson?: Types.ObjectId | null;
-  student: Types.ObjectId;
+  author: Types.ObjectId;
   title: string;
   body: string;
   repliesCount: number;
@@ -16,7 +16,7 @@ export interface IDiscussionThread extends Document {
 export interface IDiscussionReply extends Document {
   _id: Types.ObjectId;
   thread: Types.ObjectId;
-  student: Types.ObjectId;
+  author: Types.ObjectId;
   body: string;
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +26,7 @@ const discussionThreadSchema = new Schema<IDiscussionThread>(
   {
     course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
     lesson: { type: Schema.Types.ObjectId, ref: "Lesson" },
-    student: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    author: { type: Schema.Types.ObjectId, ref: "User", required: true },
     title: { type: String, required: true, trim: true, maxlength: 200 },
     body: { type: String, required: true, trim: true },
     repliesCount: { type: Number, default: 0 },
@@ -52,7 +52,7 @@ const discussionReplySchema = new Schema<IDiscussionReply>(
       ref: "DiscussionThread",
       required: true,
     },
-    student: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    author: { type: Schema.Types.ObjectId, ref: "User", required: true },
     body: { type: String, required: true, trim: true },
   },
   {

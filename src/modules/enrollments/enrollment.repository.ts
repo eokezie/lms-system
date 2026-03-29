@@ -1,4 +1,5 @@
-import mongoose from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
+import { User } from "@/modules/users/user.model";
 import { Enrollment, IEnrollment } from "./enrollment.model";
 
 export type EnrollmentListFilterType = "enrolled" | "completed" | "in_progress";
@@ -54,6 +55,77 @@ export function findEnrollmentsByCourse(
     .exec();
 }
 
+export type CourseEnrollmentListSort = "most_recent" | "oldest" | "progress";
+export type CourseEnrollmentStatusFilter = "all" | "completed" | "in_progress";
+
+export async function findEnrollmentsByCoursePaginated(
+  courseId: string,
+  options: {
+    page: number;
+    limit: number;
+    search?: string;
+    sort: CourseEnrollmentListSort;
+    status: CourseEnrollmentStatusFilter;
+  },
+): Promise<{
+  enrollments: IEnrollment[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> {
+  const { page, limit, search, sort, status } = options;
+  const skip = (page - 1) * limit;
+  const courseOid = new mongoose.Types.ObjectId(courseId);
+
+  const query: FilterQuery<IEnrollment> = { course: courseOid };
+
+  if (status === "completed") {
+    query.status = "completed";
+  } else if (status === "in_progress") {
+    query.status = "active";
+    query.progressPercent = { $lt: 100 };
+  } else {
+    query.status = { $in: ["active", "completed"] };
+  }
+
+  if (search?.trim()) {
+    const rx = new RegExp(search.trim(), "i");
+    const matchingStudents = await User.find({
+      role: "student",
+      $or: [{ firstName: rx }, { lastName: rx }, { email: rx }],
+    })
+      .select("_id")
+      .lean()
+      .exec();
+    const ids = matchingStudents.map((u) => u._id);
+    query.student = { $in: ids };
+  }
+
+  let sortKey: Record<string, 1 | -1> = { enrolledAt: -1 };
+  if (sort === "oldest") sortKey = { enrolledAt: 1 };
+  else if (sort === "progress") sortKey = { progressPercent: -1, enrolledAt: -1 };
+
+  const [enrollments, total] = await Promise.all([
+    Enrollment.find(query)
+      .populate("student", "firstName lastName email avatar")
+      .sort(sortKey)
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
+    Enrollment.countDocuments(query).exec(),
+  ]);
+
+  return {
+    enrollments: enrollments as unknown as IEnrollment[],
+    total,
+    page,
+    limit,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+  };
+}
+
 export async function isStudentEnrolled(
   studentId: string,
   courseId: string,
@@ -62,6 +134,18 @@ export async function isStudentEnrolled(
     student: studentId,
     course: courseId,
     status: "active",
+  });
+  return !!doc;
+}
+
+export async function hasActiveOrCompletedEnrollment(
+  studentId: string,
+  courseId: string,
+): Promise<boolean> {
+  const doc = await Enrollment.exists({
+    student: studentId,
+    course: courseId,
+    status: { $in: ["active", "completed"] },
   });
   return !!doc;
 }

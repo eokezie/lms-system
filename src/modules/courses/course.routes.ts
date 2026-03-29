@@ -27,9 +27,13 @@ import {
   updateCoursePriceSchema,
   updateCourseSchema,
 } from "./course.validation";
+import { getCourseEnrollmentsForCourseHandler } from "@/modules/enrollments/enrollment.controller";
+import { getCourseEnrollmentsQuerySchema } from "@/modules/enrollments/enrollment.validation";
+import { processFiles } from "@/middleware/multer.middleware";
 import ratingRoutes from "../ratings/rating.routes";
 import noteRoutes from "@/modules/notes/note.routes";
-import { processFiles } from "@/middleware/multer.middleware";
+import discussionRoutes from "@/modules/discussions/discussion.routes";
+
 
 const router = Router();
 
@@ -70,6 +74,19 @@ router.get(
   validate(getRelatedCoursesQuerySchema, "query") as any,
   getRelatedCoursesHandler as any,
 );
+router.get(
+  "/:id/enrollments",
+  authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]) as any,
+  validate(courseIdParamSchema, "params") as any,
+  validate(getCourseEnrollmentsQuerySchema, "query") as any,
+  getCourseEnrollmentsForCourseHandler as any,
+);
+router.use(
+  "/:id/discussions",
+  authorize(USER_ROLES[0], USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]) as any,
+  discussionRoutes,
+);
+router.use("/:id/reviews", ratingRoutes);
 router.get(
   "/:id",
   validate(courseIdOrSlugParamSchema, "params") as any,

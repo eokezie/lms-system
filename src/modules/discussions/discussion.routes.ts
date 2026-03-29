@@ -18,13 +18,13 @@ import {
 const router = Router({ mergeParams: true });
 
 router.get(
-  "/",
+  "/course/:id",
   validate(discussionCourseParamsSchema, "params"),
   validate(listDiscussionsQuerySchema, "query"),
   listDiscussionsHandler,
 );
 router.post(
-  "/",
+  "/course/:id",
   validate(discussionCourseParamsSchema, "params"),
   validate(createDiscussionSchema),
   createDiscussionHandler,

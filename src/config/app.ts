@@ -25,6 +25,9 @@ import adminDashboardRoutes from "@/modules/admin-dashboard/admin-dashboard.rout
 import lessonFlagRoutes from "@/modules/lesson-flags/lesson-flag.routes";
 import studentDashboardRoutes from "@/modules/student-dashboard/student-dashboard.routes";
 import discussionRoutes from "@/modules/discussions/discussion.routes";
+import { attachCourseIdFromQuery } from "@/modules/discussions/discussion.middleware";
+import { authenticate, authorize } from "@/middleware/auth.middleware";
+import { USER_ROLES } from "@/modules/users/user.model";
 
 const app = express();
 
@@ -106,7 +109,13 @@ app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
 app.use("/api/v1/lesson-flags", lessonFlagRoutes);
 app.use("/api/v1/progress", progressRoutes);
 app.use("/api/v1/student/dashboard", studentDashboardRoutes);
-app.use("/api/v1/discussions", discussionRoutes);
+app.use(
+	"/api/v1/discussions",
+	authenticate,
+	attachCourseIdFromQuery,
+	authorize(USER_ROLES[0], USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+	discussionRoutes,
+);
 // --- 404 ---
 app.use((_req, res) => {
 	res.status(404).json({ success: false, message: "Route not found" });

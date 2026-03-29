@@ -1,5 +1,9 @@
+import mongoose from "mongoose";
 import { ApiError } from "@/utils/apiError";
 import { logger } from "@/utils/logger";
+import type { UserRole } from "@/modules/users/user.model";
+import { fetchCourseIdsForInstructor } from "@/modules/admin-dashboard/admin-dashboard.repository";
+import { isCourseOwnedByInstructor } from "@/modules/courses/course.repository";
 import {
   createDiscount,
   findDiscountById,
@@ -10,9 +14,65 @@ import {
   updateDiscountById,
   deleteDiscountById,
 } from "./discount.repository";
+import { IDiscount } from "./discount.model";
 import { CreateDiscountDto, UpdateDiscountDto } from "./discount.types";
 
-export async function createDiscountService(dto: CreateDiscountDto) {
+async function resolveDiscountListScope(
+  role: UserRole,
+  userId: string,
+): Promise<mongoose.Types.ObjectId[] | undefined> {
+  if (role === "admin" || role === "super_admin") return undefined;
+  return fetchCourseIdsForInstructor(userId);
+}
+
+function discountCourseIdString(discount: IDiscount): string | null {
+  const c = discount.course as
+    | mongoose.Types.ObjectId
+    | { _id: mongoose.Types.ObjectId }
+    | null
+    | undefined;
+  if (c == null) return null;
+  if (typeof c === "object" && "_id" in c) return String(c._id);
+  return String(c);
+}
+
+async function assertDiscountAccess(
+  discount: IDiscount,
+  role: UserRole,
+  userId: string,
+): Promise<void> {
+  if (role === "admin" || role === "super_admin") return;
+  if (role !== "instructor") {
+    throw ApiError.forbidden("Insufficient permissions");
+  }
+  const cid = discountCourseIdString(discount);
+  if (!cid) {
+    throw ApiError.forbidden(
+      "Only admins can manage platform-wide discounts",
+    );
+  }
+  const owns = await isCourseOwnedByInstructor(cid, userId);
+  if (!owns) {
+    throw ApiError.forbidden("You can only manage discounts for your own courses");
+  }
+}
+
+export async function createDiscountService(
+  dto: CreateDiscountDto,
+  role: UserRole,
+  userId: string,
+) {
+  if (role === "instructor") {
+    if (!dto.courseId) {
+      throw ApiError.forbidden(
+        "Instructors must attach a discount to one of their courses",
+      );
+    }
+    const owns = await isCourseOwnedByInstructor(dto.courseId, userId);
+    if (!owns) {
+      throw ApiError.forbidden("You can only create discounts for your own courses");
+    }
+  }
   if (dto.expiresAt && new Date(dto.expiresAt) <= new Date()) {
     throw ApiError.badRequest("Expires date must be in the future");
   }
@@ -27,12 +87,16 @@ export async function createDiscountService(dto: CreateDiscountDto) {
 export async function listDiscountsService(
   page: number,
   limit: number,
-  courseId?: string,
+  courseId: string | undefined,
+  role: UserRole,
+  userId: string,
 ) {
+  const restrictToCourseIds = await resolveDiscountListScope(role, userId);
   const { discounts, total } = await findDiscountsPaginated(
     page,
     limit,
     courseId,
+    restrictToCourseIds,
   );
   return {
     discounts,
@@ -46,12 +110,16 @@ export async function listDiscountsService(
 export async function listActiveDiscountsService(
   page: number,
   limit: number,
-  courseId?: string,
+  courseId: string | undefined,
+  role: UserRole,
+  userId: string,
 ) {
+  const restrictToCourseIds = await resolveDiscountListScope(role, userId);
   const { discounts, total } = await findActiveDiscountsPaginated(
     page,
     limit,
     courseId,
+    restrictToCourseIds,
   );
   return {
     discounts,
@@ -65,12 +133,16 @@ export async function listActiveDiscountsService(
 export async function listInactiveDiscountsService(
   page: number,
   limit: number,
-  courseId?: string,
+  courseId: string | undefined,
+  role: UserRole,
+  userId: string,
 ) {
+  const restrictToCourseIds = await resolveDiscountListScope(role, userId);
   const { discounts, total } = await findInactiveDiscountsPaginated(
     page,
     limit,
     courseId,
+    restrictToCourseIds,
   );
   return {
     discounts,
@@ -84,9 +156,12 @@ export async function listInactiveDiscountsService(
 export async function updateDiscountService(
   id: string,
   dto: UpdateDiscountDto,
+  role: UserRole,
+  userId: string,
 ) {
   const discount = await findDiscountById(id);
   if (!discount) throw ApiError.notFound("Discount not found");
+  await assertDiscountAccess(discount, role, userId);
   if (dto.expiresAt && new Date(dto.expiresAt) <= new Date()) {
     throw ApiError.badRequest("Expires date must be in the future");
   }
@@ -96,17 +171,27 @@ export async function updateDiscountService(
   return updated;
 }
 
-export async function deleteDiscountService(id: string) {
+export async function deleteDiscountService(
+  id: string,
+  role: UserRole,
+  userId: string,
+) {
   const discount = await findDiscountById(id);
   if (!discount) throw ApiError.notFound("Discount not found");
+  await assertDiscountAccess(discount, role, userId);
   await deleteDiscountById(id);
   logger.info({ discountId: id }, "Discount deleted");
   return { deleted: true };
 }
 
-export async function getDiscountByIdService(id: string) {
+export async function getDiscountByIdService(
+  id: string,
+  role: UserRole,
+  userId: string,
+) {
   const discount = await findDiscountById(id);
   if (!discount) throw ApiError.notFound("Discount not found");
+  await assertDiscountAccess(discount, role, userId);
   return discount;
 }
 

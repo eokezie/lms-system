@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { catchAsync } from "@/utils/catchAsync";
 import { sendCreated, sendSuccess } from "@/utils/apiResponse";
+import type { UserRole } from "@/modules/users/user.model";
 import {
   createDiscountService,
   listDiscountsService,
@@ -14,7 +15,11 @@ import {
 
 export const createDiscountHandler = catchAsync(
   async (req: Request, res: Response) => {
-    const discount = await createDiscountService(req.body);
+    const discount = await createDiscountService(
+      req.body,
+      req.user!.role as UserRole,
+      req.user!.userId,
+    );
     sendCreated({
       res,
       message: "Discount created successfully",
@@ -30,7 +35,13 @@ export const listDiscountsHandler = catchAsync(
       limit?: number;
       courseId?: string;
     };
-    const result = await listDiscountsService(page ?? 1, limit ?? 20, courseId);
+    const result = await listDiscountsService(
+      page ?? 1,
+      limit ?? 20,
+      courseId,
+      req.user!.role as UserRole,
+      req.user!.userId,
+    );
     sendSuccess({
       res,
       message: "Discounts fetched successfully",
@@ -56,6 +67,8 @@ export const listActiveDiscountsHandler = catchAsync(
       page ?? 1,
       limit ?? 20,
       courseId,
+      req.user!.role as UserRole,
+      req.user!.userId,
     );
     sendSuccess({
       res,
@@ -82,6 +95,8 @@ export const listInactiveDiscountsHandler = catchAsync(
       page ?? 1,
       limit ?? 20,
       courseId,
+      req.user!.role as UserRole,
+      req.user!.userId,
     );
     sendSuccess({
       res,
@@ -100,7 +115,11 @@ export const listInactiveDiscountsHandler = catchAsync(
 export const getDiscountByIdHandler = catchAsync(
   async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
-    const discount = await getDiscountByIdService(id);
+    const discount = await getDiscountByIdService(
+      id,
+      req.user!.role as UserRole,
+      req.user!.userId,
+    );
     sendSuccess({
       res,
       message: "Discount fetched successfully",
@@ -112,7 +131,12 @@ export const getDiscountByIdHandler = catchAsync(
 export const updateDiscountHandler = catchAsync(
   async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
-    const discount = await updateDiscountService(id, req.body);
+    const discount = await updateDiscountService(
+      id,
+      req.body,
+      req.user!.role as UserRole,
+      req.user!.userId,
+    );
     sendSuccess({
       res,
       message: "Discount updated successfully",
@@ -124,7 +148,7 @@ export const updateDiscountHandler = catchAsync(
 export const deleteDiscountHandler = catchAsync(
   async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
-    await deleteDiscountService(id);
+    await deleteDiscountService(id, req.user!.role as UserRole, req.user!.userId);
     sendSuccess({
       res,
       message: "Discount deleted successfully",

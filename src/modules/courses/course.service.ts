@@ -123,10 +123,14 @@ export async function getAdminSubmissionsArchivedService(
   return findCoursesForAdminByStatusPaginated("archived", query);
 }
 
-export async function getCourseStatsService() {
+export async function getCourseStatsService(
+  userId: string,
+  userRole: string,
+) {
+  const instructorId = userRole === "instructor" ? userId : undefined;
   const [totalEnrollment, highestRatedCourse] = await Promise.all([
-    getTotalEnrollmentCount(),
-    getHighestRatedCourse(),
+    getTotalEnrollmentCount(instructorId),
+    getHighestRatedCourse(instructorId),
   ]);
   return { totalEnrollment, highestRatedCourse };
 }

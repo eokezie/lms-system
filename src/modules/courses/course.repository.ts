@@ -384,16 +384,23 @@ export async function findCoursesForAdminByStatusPaginated(
   };
 }
 
-/** Sum of enrollmentCount across all courses (for admin stats). */
-export async function getTotalEnrollmentCount(): Promise<number> {
-  const result = await Course.aggregate([
-    { $group: { _id: null, total: { $sum: "$enrollmentCount" } } },
-  ]).exec();
+export async function getTotalEnrollmentCount(
+  instructorId?: string,
+): Promise<number> {
+  const pipeline: mongoose.PipelineStage[] = [];
+  if (instructorId) {
+    pipeline.push({
+      $match: { instructor: new mongoose.Types.ObjectId(instructorId) },
+    });
+  }
+  pipeline.push({ $group: { _id: null, total: { $sum: "$enrollmentCount" } } });
+  const result = await Course.aggregate(pipeline).exec();
   return result[0]?.total ?? 0;
 }
 
-/** Single highest-rated published course (by averageRating, then totalRatings). */
-export async function getHighestRatedCourse(): Promise<
+export async function getHighestRatedCourse(
+  instructorId?: string,
+): Promise<
   | (ICourse & {
       instructor?: {
         _id: string;
@@ -405,7 +412,11 @@ export async function getHighestRatedCourse(): Promise<
     })
   | null
 > {
-  const docs = await Course.find({ status: PUBLISHED })
+  const filter: Record<string, unknown> = { status: PUBLISHED };
+  if (instructorId) {
+    filter.instructor = new mongoose.Types.ObjectId(instructorId);
+  }
+  const docs = await Course.find(filter)
     .sort({ averageRating: -1, totalRatings: -1 })
     .limit(1)
     .populate("instructor", "firstName lastName avatar")

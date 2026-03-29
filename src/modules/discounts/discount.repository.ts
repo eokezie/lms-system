@@ -2,6 +2,26 @@ import mongoose from "mongoose";
 import { Discount, IDiscount } from "./discount.model";
 import { CreateDiscountDto, UpdateDiscountDto } from "./discount.types";
 
+function buildDiscountCourseFilter(
+  courseId: string | undefined,
+  restrictToCourseIds: mongoose.Types.ObjectId[] | undefined,
+): Record<string, unknown> {
+  if (restrictToCourseIds === undefined) {
+    if (!courseId) return {};
+    return { course: new mongoose.Types.ObjectId(courseId) };
+  }
+  if (restrictToCourseIds.length === 0) {
+    return { _id: { $in: [] } };
+  }
+  if (courseId) {
+    const oid = new mongoose.Types.ObjectId(courseId);
+    const allowed = restrictToCourseIds.some((id) => id.equals(oid));
+    if (!allowed) return { _id: { $in: [] } };
+    return { course: oid };
+  }
+  return { course: { $in: restrictToCourseIds } };
+}
+
 export function createDiscount(dto: CreateDiscountDto): Promise<IDiscount> {
   return Discount.create({
     course: dto.courseId ? new mongoose.Types.ObjectId(dto.courseId) : null,
@@ -22,10 +42,10 @@ export async function findDiscountsPaginated(
   page: number,
   limit: number,
   courseId?: string,
+  restrictToCourseIds?: mongoose.Types.ObjectId[],
 ): Promise<{ discounts: IDiscount[]; total: number }> {
   const skip = (page - 1) * limit;
-  const filter: Record<string, unknown> = {};
-  if (courseId) filter.course = new mongoose.Types.ObjectId(courseId);
+  const filter = buildDiscountCourseFilter(courseId, restrictToCourseIds);
   const [discounts, total] = await Promise.all([
     Discount.find(filter)
       .populate("course", "title slug")
@@ -43,6 +63,7 @@ export async function findActiveDiscountsPaginated(
   page: number,
   limit: number,
   courseId?: string,
+  restrictToCourseIds?: mongoose.Types.ObjectId[],
 ): Promise<{ discounts: IDiscount[]; total: number }> {
   const skip = (page - 1) * limit;
   const now = new Date();
@@ -57,11 +78,11 @@ export async function findActiveDiscountsPaginated(
       },
     ],
   };
-  const filter: Record<string, unknown> = courseId
-    ? {
-        $and: [activeAnd, { course: new mongoose.Types.ObjectId(courseId) }],
-      }
-    : activeAnd;
+  const courseFilter = buildDiscountCourseFilter(courseId, restrictToCourseIds);
+  const filter: Record<string, unknown> =
+    Object.keys(courseFilter).length === 0
+      ? activeAnd
+      : { $and: [activeAnd, courseFilter] };
   const [discounts, total] = await Promise.all([
     Discount.find(filter)
       .populate("course", "title slug")
@@ -79,6 +100,7 @@ export async function findInactiveDiscountsPaginated(
   page: number,
   limit: number,
   courseId?: string,
+  restrictToCourseIds?: mongoose.Types.ObjectId[],
 ): Promise<{ discounts: IDiscount[]; total: number }> {
   const skip = (page - 1) * limit;
   const now = new Date();
@@ -93,11 +115,11 @@ export async function findInactiveDiscountsPaginated(
       },
     ],
   };
-  const filter: Record<string, unknown> = courseId
-    ? {
-        $and: [inactiveOr, { course: new mongoose.Types.ObjectId(courseId) }],
-      }
-    : inactiveOr;
+  const courseFilter = buildDiscountCourseFilter(courseId, restrictToCourseIds);
+  const filter: Record<string, unknown> =
+    Object.keys(courseFilter).length === 0
+      ? inactiveOr
+      : { $and: [inactiveOr, courseFilter] };
   const [discounts, total] = await Promise.all([
     Discount.find(filter)
       .populate("course", "title slug")

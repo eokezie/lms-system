@@ -67,8 +67,11 @@ export const getManageCoursesHandler = catchAsync(
 );
 
 export const getCourseStatsHandler = catchAsync(
-  async (_req: Request, res: Response) => {
-    const stats = await getCourseStatsService();
+  async (req: Request, res: Response) => {
+    const stats = await getCourseStatsService(
+      req.user!.userId,
+      req.user!.role,
+    );
     sendSuccess({
       res,
       message: "Course stats fetched successfully",

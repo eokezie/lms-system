@@ -31,8 +31,9 @@ router.post(
 );
 router.post(
   "/:threadId/replies",
-  validate(createReplySchema, "params"),
-  createDiscussionReplyHandler
+  validate(discussionThreadParamsSchema, "params"),
+  validate(createReplySchema),
+  createDiscussionReplyHandler,
 );
 router.get(
   "/:threadId",

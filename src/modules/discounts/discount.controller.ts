@@ -4,6 +4,8 @@ import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import {
   createDiscountService,
   listDiscountsService,
+  listActiveDiscountsService,
+  listInactiveDiscountsService,
   updateDiscountService,
   deleteDiscountService,
   getDiscountByIdService,
@@ -32,6 +34,58 @@ export const listDiscountsHandler = catchAsync(
     sendSuccess({
       res,
       message: "Discounts fetched successfully",
+      data: result.discounts,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    });
+  },
+);
+
+export const listActiveDiscountsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { page, limit, courseId } = req.query as {
+      page?: number;
+      limit?: number;
+      courseId?: string;
+    };
+    const result = await listActiveDiscountsService(
+      page ?? 1,
+      limit ?? 20,
+      courseId,
+    );
+    sendSuccess({
+      res,
+      message: "Active discounts fetched successfully",
+      data: result.discounts,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    });
+  },
+);
+
+export const listInactiveDiscountsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { page, limit, courseId } = req.query as {
+      page?: number;
+      limit?: number;
+      courseId?: string;
+    };
+    const result = await listInactiveDiscountsService(
+      page ?? 1,
+      limit ?? 20,
+      courseId,
+    );
+    sendSuccess({
+      res,
+      message: "Inactive discounts fetched successfully",
       data: result.discounts,
       meta: {
         page: result.page,

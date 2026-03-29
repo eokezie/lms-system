@@ -39,6 +39,78 @@ export async function findDiscountsPaginated(
   return { discounts: discounts as unknown as IDiscount[], total };
 }
 
+export async function findActiveDiscountsPaginated(
+  page: number,
+  limit: number,
+  courseId?: string,
+): Promise<{ discounts: IDiscount[]; total: number }> {
+  const skip = (page - 1) * limit;
+  const now = new Date();
+  const activeAnd: Record<string, unknown> = {
+    $and: [
+      { expiresAt: { $gt: now } },
+      {
+        $or: [
+          { purchaseLimit: null },
+          { $expr: { $lt: ["$timesUsed", "$purchaseLimit"] } },
+        ],
+      },
+    ],
+  };
+  const filter: Record<string, unknown> = courseId
+    ? {
+        $and: [activeAnd, { course: new mongoose.Types.ObjectId(courseId) }],
+      }
+    : activeAnd;
+  const [discounts, total] = await Promise.all([
+    Discount.find(filter)
+      .populate("course", "title slug")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
+    Discount.countDocuments(filter),
+  ]);
+  return { discounts: discounts as unknown as IDiscount[], total };
+}
+
+export async function findInactiveDiscountsPaginated(
+  page: number,
+  limit: number,
+  courseId?: string,
+): Promise<{ discounts: IDiscount[]; total: number }> {
+  const skip = (page - 1) * limit;
+  const now = new Date();
+  const inactiveOr: Record<string, unknown> = {
+    $or: [
+      { expiresAt: { $lte: now } },
+      {
+        $and: [
+          { purchaseLimit: { $ne: null } },
+          { $expr: { $gte: ["$timesUsed", "$purchaseLimit"] } },
+        ],
+      },
+    ],
+  };
+  const filter: Record<string, unknown> = courseId
+    ? {
+        $and: [inactiveOr, { course: new mongoose.Types.ObjectId(courseId) }],
+      }
+    : inactiveOr;
+  const [discounts, total] = await Promise.all([
+    Discount.find(filter)
+      .populate("course", "title slug")
+      .sort({ expiresAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
+    Discount.countDocuments(filter),
+  ]);
+  return { discounts: discounts as unknown as IDiscount[], total };
+}
+
 export function updateDiscountById(
   id: string,
   dto: UpdateDiscountDto,
@@ -56,7 +128,6 @@ export function deleteDiscountById(id: string): Promise<IDiscount | null> {
   return Discount.findByIdAndDelete(id).exec();
 }
 
-/** Active discount for a course (or global) for checkout/display. Not expired, under purchaseLimit if set. */
 export function findActiveDiscountForCourse(
   courseId: string,
 ): Promise<

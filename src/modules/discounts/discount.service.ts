@@ -4,6 +4,8 @@ import {
   createDiscount,
   findDiscountById,
   findDiscountsPaginated,
+  findActiveDiscountsPaginated,
+  findInactiveDiscountsPaginated,
   findActiveDiscountForCourse,
   updateDiscountById,
   deleteDiscountById,
@@ -28,6 +30,44 @@ export async function listDiscountsService(
   courseId?: string,
 ) {
   const { discounts, total } = await findDiscountsPaginated(
+    page,
+    limit,
+    courseId,
+  );
+  return {
+    discounts,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+export async function listActiveDiscountsService(
+  page: number,
+  limit: number,
+  courseId?: string,
+) {
+  const { discounts, total } = await findActiveDiscountsPaginated(
+    page,
+    limit,
+    courseId,
+  );
+  return {
+    discounts,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+export async function listInactiveDiscountsService(
+  page: number,
+  limit: number,
+  courseId?: string,
+) {
+  const { discounts, total } = await findInactiveDiscountsPaginated(
     page,
     limit,
     courseId,

@@ -5,6 +5,8 @@ import { USER_ROLES } from "@/modules/users/user.model";
 import {
   createDiscountHandler,
   listDiscountsHandler,
+  listActiveDiscountsHandler,
+  listInactiveDiscountsHandler,
   getDiscountByIdHandler,
   updateDiscountHandler,
   deleteDiscountHandler,
@@ -34,6 +36,16 @@ router.get(
   "/",
   validate(listDiscountsQuerySchema, "query"),
   listDiscountsHandler,
+);
+router.get(
+  "/active",
+  validate(listDiscountsQuerySchema, "query"),
+  listActiveDiscountsHandler,
+);
+router.get(
+  "/inactive",
+  validate(listDiscountsQuerySchema, "query"),
+  listInactiveDiscountsHandler,
 );
 router.get(
   "/:id",

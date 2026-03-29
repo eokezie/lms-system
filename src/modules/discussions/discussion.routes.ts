@@ -14,10 +14,12 @@ import {
   getDiscussionThreadHandler,
   createDiscussionReplyHandler,
 } from "./discussion.controller";
-import { authorize } from "@/middleware/auth.middleware";
+import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { USER_ROLES } from "../users/user.model";
 
 const router = Router({ mergeParams: true });
+
+router.use(authenticate);
 
 router.get(
   "/course/:id",

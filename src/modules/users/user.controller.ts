@@ -21,6 +21,12 @@ import { catchAsync } from "@/utils/catchAsync";
 import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import { uploadFile, isSpacesConfigured } from "@/libs/spacesFileUpload";
 import { ApiError } from "@/utils/apiError";
+import {
+  getEffectivePermissionsForMeService,
+  getMyActivityService,
+  updateNotificationPreferencesService,
+} from "@/modules/admin-settings/admin-settings.service";
+import type { IUserActivityLog } from "@/modules/admin-settings/activity-log.model";
 
 type MulterFiles = { [fieldname: string]: Express.Multer.File[] };
 
@@ -106,6 +112,62 @@ export const changePassword = catchAsync(
     const { currentPassword, newPassword } = req.body;
     await changeUserPassword(req.user!.userId, currentPassword, newPassword);
     sendSuccess({ res, message: "Password changed successfully" });
+  },
+);
+
+export const getMyPermissionsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const data = await getEffectivePermissionsForMeService(req.user!.userId);
+    sendSuccess({ res, message: "Permissions loaded", data });
+  },
+);
+
+export const getMyActivityHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const q = req.query as unknown as { page?: number; limit?: number };
+    const page = q.page ?? 1;
+    const limit = q.limit ?? 20;
+    const { items, total } = await getMyActivityService(req.user!.userId, {
+      page,
+      limit,
+    });
+    const mapped = items.map((log: IUserActivityLog) => {
+      const actor = log.actorId as unknown as
+        | { firstName?: string; lastName?: string }
+        | undefined;
+      const actorDisplayName =
+        actor && actor.firstName
+          ? `${actor.firstName} ${actor.lastName ?? ""}`.trim()
+          : undefined;
+      return {
+        id: String(log._id),
+        actionLabel: log.actionLabel,
+        detail: log.detail,
+        actorDisplayName,
+        createdAt: log.createdAt,
+      };
+    });
+    sendSuccess({
+      res,
+      message: "Activity loaded",
+      data: mapped,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  },
+);
+
+export const patchNotificationPreferencesHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const data = await updateNotificationPreferencesService(
+      req.user!.userId,
+      req.body,
+    );
+    sendSuccess({ res, message: "Notification preferences updated", data });
   },
 );
 

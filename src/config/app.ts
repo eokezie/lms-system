@@ -24,6 +24,7 @@ import careerPathRoutes from "@/modules/career-paths/career-path.routes";
 import adminDashboardRoutes from "@/modules/admin-dashboard/admin-dashboard.routes";
 import lessonFlagRoutes from "@/modules/lesson-flags/lesson-flag.routes";
 import studentDashboardRoutes from "@/modules/student-dashboard/student-dashboard.routes";
+import adminSettingsRoutes from "@/modules/admin-settings/admin-settings.routes";
 
 const app = express();
 
@@ -101,6 +102,7 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/discounts", discountRoutes);
 app.use("/api/v1/enrollments", enrollmentRoutes);
 app.use("/api/v1/career-paths", careerPathRoutes);
+app.use("/api/v1/admin", adminSettingsRoutes);
 app.use("/api/v1/admin/dashboard", adminDashboardRoutes);
 app.use("/api/v1/lesson-flags", lessonFlagRoutes);
 app.use("/api/v1/progress", progressRoutes);

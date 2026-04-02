@@ -52,6 +52,21 @@ export type InstructorAccountStatus = (typeof INSTRUCTOR_ACCOUNT_STATUSES)[numbe
 export const STUDENT_ACCOUNT_STATUSES = ["active", "suspended"] as const;
 export type StudentAccountStatus = (typeof STUDENT_ACCOUNT_STATUSES)[number];
 
+export const ADMIN_ACCOUNT_STATUSES = ["active", "suspended"] as const;
+export type AdminAccountStatus = (typeof ADMIN_ACCOUNT_STATUSES)[number];
+
+export interface INotificationChannelPrefs {
+  email: boolean;
+  app: boolean;
+}
+
+export interface INotificationPreferences {
+  courseUpdates: INotificationChannelPrefs;
+  replies: INotificationChannelPrefs;
+  accountUpdates: INotificationChannelPrefs;
+  systemAlerts: INotificationChannelPrefs;
+}
+
 export interface IInstructorVerificationApplication {
   profilePhotoUrl?: string;
   firstName?: string;
@@ -104,6 +119,11 @@ export interface IUser extends Document {
   instructorVerificationStatus: InstructorVerificationStatus;
   instructorAccountStatus: InstructorAccountStatus;
   studentAccountStatus: StudentAccountStatus;
+  /** Admin / super_admin access (settings UI). */
+  adminAccountStatus: AdminAccountStatus;
+  /** Optional custom role document for permissions matrix. */
+  adminRoleId?: mongoose.Types.ObjectId;
+  notificationPreferences?: INotificationPreferences;
   instructorVerificationApplication?: IInstructorVerificationApplication;
   // When true, instructor is "Infinix tech"; when false/undefined, "External only"
   isInfinixInstructor?: boolean;
@@ -191,6 +211,34 @@ const userSchema = new Schema<IUser>(
       enum: STUDENT_ACCOUNT_STATUSES,
       default: "active",
       index: true,
+    },
+    adminAccountStatus: {
+      type: String,
+      enum: ADMIN_ACCOUNT_STATUSES,
+      default: "active",
+      index: true,
+    },
+    adminRoleId: {
+      type: Schema.Types.ObjectId,
+      ref: "AdminRole",
+    },
+    notificationPreferences: {
+      courseUpdates: {
+        email: { type: Boolean, default: true },
+        app: { type: Boolean, default: true },
+      },
+      replies: {
+        email: { type: Boolean, default: true },
+        app: { type: Boolean, default: true },
+      },
+      accountUpdates: {
+        email: { type: Boolean, default: true },
+        app: { type: Boolean, default: true },
+      },
+      systemAlerts: {
+        email: { type: Boolean, default: true },
+        app: { type: Boolean, default: true },
+      },
     },
     instructorVerificationApplication: {
       profilePhotoUrl: { type: String },

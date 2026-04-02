@@ -101,6 +101,27 @@ export async function sendForgotPasswordLinkEmail(params: {
   );
 }
 
+export async function sendStaffInviteEmail(params: {
+  email: string;
+  firstName: string;
+  temporaryPassword: string;
+  roleLabel: string;
+}): Promise<void> {
+  const loginLink = `${getFrontendBaseUrl()}/login`;
+  const html = `<p>Hi ${params.firstName},</p>
+<p>Your <strong>${params.roleLabel}</strong> account has been created on Infinix Tech.</p>
+<p><strong>Temporary password:</strong> ${params.temporaryPassword}</p>
+<p>Sign in at <a href="${loginLink}">${loginLink}</a> and change your password under Settings → Security.</p>`;
+  const text = `Hi ${params.firstName}, your ${params.roleLabel} account was created. Temporary password: ${params.temporaryPassword}. Log in: ${loginLink}`;
+  await resendEmailFunc({
+    to: params.email,
+    subject: "Your Infinix Tech account",
+    html,
+    text,
+  });
+  logger.info({ email: params.email }, "Staff invite email sent");
+}
+
 export async function sendPasswordChangedEmail(params: {
   email: string;
   firstName: string;

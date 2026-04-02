@@ -16,9 +16,16 @@ import {
   getStudentManagementStatsHandler,
   getStudentsManagementListHandler,
   updateStudentAccountStatusHandler,
+  getMyPermissionsHandler,
+  getMyActivityHandler,
+  patchNotificationPreferencesHandler,
 } from "./user.controller";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { validate } from "@/middleware/validate";
+import {
+  activityQuerySchema,
+  notificationPreferencesPatchSchema,
+} from "@/modules/admin-settings/admin-settings.validation";
 import {
   updateProfileSchema,
   changePasswordSchema,
@@ -44,7 +51,14 @@ router.post(
   validate(registerSchema),
   createUserHandler,
 );
+router.get("/me/permissions", getMyPermissionsHandler);
+router.get("/me/activity", validate(activityQuerySchema, "query"), getMyActivityHandler);
 router.get("/me", getMe);
+router.patch(
+  "/me/notification-preferences",
+  validate(notificationPreferencesPatchSchema),
+  patchNotificationPreferencesHandler,
+);
 router.patch("/me", validate(updateProfileSchema), updateMe);
 router.patch("/onboarding", authorize(USER_ROLES[0]), userOnboardingHandler);
 router.patch("/me/password", validate(changePasswordSchema), changePassword);

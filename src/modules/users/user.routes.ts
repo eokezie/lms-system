@@ -18,6 +18,7 @@ import {
   updateStudentAccountStatusHandler,
   getMyPermissionsHandler,
   getMyActivityHandler,
+  getNotificationPreferencesHandler,
   patchNotificationPreferencesHandler,
 } from "./user.controller";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
@@ -53,6 +54,7 @@ router.post(
 );
 router.get("/me/permissions", getMyPermissionsHandler);
 router.get("/me/activity", validate(activityQuerySchema, "query"), getMyActivityHandler);
+router.get("/me/notification-preferences", getNotificationPreferencesHandler);
 router.get("/me", getMe);
 router.patch(
   "/me/notification-preferences",

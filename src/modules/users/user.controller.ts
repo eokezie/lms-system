@@ -24,6 +24,7 @@ import { ApiError } from "@/utils/apiError";
 import {
   getEffectivePermissionsForMeService,
   getMyActivityService,
+  getNotificationPreferencesService,
   updateNotificationPreferencesService,
 } from "@/modules/admin-settings/admin-settings.service";
 import type { IUserActivityLog } from "@/modules/admin-settings/activity-log.model";
@@ -158,6 +159,13 @@ export const getMyActivityHandler = catchAsync(
         totalPages: Math.max(1, Math.ceil(total / limit)),
       },
     });
+  },
+);
+
+export const getNotificationPreferencesHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const data = await getNotificationPreferencesService(req.user!.userId);
+    sendSuccess({ res, message: "Notification preferences loaded", data });
   },
 );
 

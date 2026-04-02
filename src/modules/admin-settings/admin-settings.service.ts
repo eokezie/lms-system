@@ -324,6 +324,16 @@ const DEFAULT_NOTIFICATION_PREFS = {
   systemAlerts: { email: true, app: true },
 };
 
+export async function getNotificationPreferencesService(userId: string) {
+  const user = await User.findById(userId).exec();
+  if (!user) throw ApiError.notFound("User not found");
+
+  return {
+    ...DEFAULT_NOTIFICATION_PREFS,
+    ...(user.toObject().notificationPreferences as object),
+  } as Record<string, { email: boolean; app: boolean }>;
+}
+
 export async function updateNotificationPreferencesService(
   userId: string,
   patch: Record<string, { email?: boolean; app?: boolean }>,

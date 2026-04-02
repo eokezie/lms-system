@@ -6,6 +6,7 @@ import {
   createMuxUploadHandler,
   muxWebhookHandler,
   updateLessonHandler,
+  getLessonByIdHandler
 } from "./lesson.controller";
 import { processFiles } from "@/middleware/multer.middleware";
 import {
@@ -36,7 +37,7 @@ router.get(
   "/:lessonId",
   authenticate,
   authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
-  updateLessonHandler,
+  getLessonByIdHandler,
 );
 router.post(
   "/mux",

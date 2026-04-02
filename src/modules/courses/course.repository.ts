@@ -384,6 +384,22 @@ export async function findCoursesForAdminByStatusPaginated(
   };
 }
 
+/** Single course in admin review queue (in_review only), with instructor + category. */
+export async function findCourseInReviewByIdForAdmin(
+  courseId: string,
+): Promise<Record<string, unknown> | null> {
+  if (!isMongoId24(courseId)) return null;
+  const doc = await Course.findOne({
+    _id: new mongoose.Types.ObjectId(courseId),
+    status: "in_review",
+  })
+    .populate("instructor", "firstName lastName avatar email")
+    .populate("category", "label")
+    .lean()
+    .exec();
+  return doc as Record<string, unknown> | null;
+}
+
 export async function getTotalEnrollmentCount(
   instructorId?: string,
 ): Promise<number> {

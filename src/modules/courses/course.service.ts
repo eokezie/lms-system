@@ -15,6 +15,7 @@ import {
   findCoursesPaginated,
   findCoursesForManagePaginated,
   findCoursesForAdminByStatusPaginated,
+  findCourseInReviewByIdForAdmin,
   findRelatedPublishedCourses,
   updateCourseById,
   deleteCourseById,
@@ -26,23 +27,24 @@ import { ApiError } from "@/utils/apiError";
 import { findInstructorIdsByIsInfinix } from "../users/user.repository";
 import type { UserRole } from "@/modules/users/user.model";
 import { CourseStatus, ICourseModule, ICtaSection } from "./course.model";
-import { findLessonsByIdsLean } from "../lessons/lesson.repository";
+import {
+  findLessonsByIdsLean,
+  type ILessonListItem,
+} from "../lessons/lesson.repository";
 import { UploadedFiles } from "@/helpers/multerHelper";
 import { uploadFile } from "@/libs/spacesFileUpload";
 import { parseJsonField } from "@/helpers/parseToJson";
 
-export async function getSingleCourseWithModulesAndLessons(idOrSlug: string) {
-  const course = await findCourseByIdOrSlugForStudent(idOrSlug);
-  if (!course) throw ApiError.notFound("Course not found");
-
-  const modules = (course as any).courseModules || [];
+async function attachLessonsToCourseModules(course: Record<string, unknown>) {
+  const modules = (course as { courseModules?: unknown[] }).courseModules || [];
   const lessonIds: mongoose.Types.ObjectId[] = [];
   for (const m of modules) {
-    const list = m.lessons || [];
+    const mod = m as { lessons?: unknown[] };
+    const list = mod.lessons || [];
     for (const lid of list) {
       const id =
-        lid && typeof lid === "object" && (lid as any)._id != null
-          ? (lid as any)._id
+        lid && typeof lid === "object" && lid !== null && "_id" in lid
+          ? (lid as { _id: unknown })._id
           : lid;
       if (id)
         lessonIds.push(
@@ -53,37 +55,59 @@ export async function getSingleCourseWithModulesAndLessons(idOrSlug: string) {
     }
   }
 
-  const lessonsMap = new Map<string, any>();
+  const lessonsMap = new Map<string, ILessonListItem>();
   if (lessonIds.length > 0) {
     const lessons = await findLessonsByIdsLean(lessonIds);
     lessons.forEach((l) => lessonsMap.set(String(l._id), l));
   }
 
-  const shapeLessonForResponse = (lesson: any) => {
+  const shapeLessonForResponse = (lesson: unknown) => {
     if (!lesson) return null;
-    const out = { ...lesson };
+    const out = { ...(lesson as Record<string, unknown>) };
     if (out.type !== "quiz") delete out.questions;
     return out;
   };
 
-  const courseModules = modules.map((mod: any) => ({
-    sectionTitle: mod.sectionTitle,
-    moduleId: mod.moduleId,
-    lessons: (mod.lessons || [])
-      .map((lid: any) => {
-        const id =
-          lid && typeof lid === "object" && lid._id != null
-            ? String(lid._id)
-            : String(lid);
-        return shapeLessonForResponse(lessonsMap.get(id) ?? null);
-      })
-      .filter(Boolean),
-  }));
+  const courseModules = modules.map((modRaw) => {
+    const mod = modRaw as {
+      sectionTitle?: string;
+      moduleId?: string;
+      lessons?: unknown[];
+    };
+    return {
+      sectionTitle: mod.sectionTitle,
+      moduleId: mod.moduleId,
+      lessons: (mod.lessons || [])
+        .map((lid: unknown) => {
+          const id =
+            lid && typeof lid === "object" && lid !== null && "_id" in lid
+              ? String((lid as { _id: unknown })._id)
+              : String(lid);
+          return shapeLessonForResponse(lessonsMap.get(id) ?? null);
+        })
+        .filter(Boolean),
+    };
+  });
 
   return {
     ...course,
     courseModules,
   };
+}
+
+export async function getSingleCourseWithModulesAndLessons(idOrSlug: string) {
+  const course = await findCourseByIdOrSlugForStudent(idOrSlug);
+  if (!course) throw ApiError.notFound("Course not found");
+
+  return attachLessonsToCourseModules(course as unknown as Record<string, unknown>);
+}
+
+export async function getAdminSubmissionInReviewByIdService(courseId: string) {
+  const course = await findCourseInReviewByIdForAdmin(courseId);
+  if (!course)
+    throw ApiError.notFound("Submission not found or not in review");
+
+  return attachLessonsToCourseModules(course);
 }
 
 export async function getRelatedCoursesService(

@@ -1,4 +1,3 @@
-import { logger } from "@/utils/logger";
 import { ApiError } from "@/utils/apiError";
 import { CreateLessonDto, UpdateLessonDto } from "./lesson.type";
 import {

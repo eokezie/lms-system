@@ -11,6 +11,7 @@ import {
   updateCoursePriceHandler,
   getManageCoursesHandler,
   getSubmissionsInReviewHandler,
+  getSubmissionInReviewByIdHandler,
   getSubmissionsArchivedHandler,
   getCourseStatsHandler,
   updateCourseHandler,
@@ -21,6 +22,7 @@ import {
   getExploreCoursesQuerySchema,
   getManageCoursesQuerySchema,
   getSubmissionsAdminQuerySchema,
+  submissionInReviewCourseIdParamSchema,
   courseIdParamSchema,
   courseIdOrSlugParamSchema,
   getRelatedCoursesQuerySchema,
@@ -55,6 +57,12 @@ router.get(
   "/stats",
   authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]) as any,
   getCourseStatsHandler as any,
+);
+router.get(
+  "/submissions/in-review/:courseId",
+  authorize(USER_ROLES[2], USER_ROLES[3]) as any,
+  validate(submissionInReviewCourseIdParamSchema, "params") as any,
+  getSubmissionInReviewByIdHandler as any,
 );
 router.get(
   "/submissions/in-review",

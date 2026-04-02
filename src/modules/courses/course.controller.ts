@@ -9,6 +9,7 @@ import {
   updateCoursePriceService,
   getManageCoursesService,
   getAdminSubmissionsInReviewService,
+  getAdminSubmissionInReviewByIdService,
   getAdminSubmissionsArchivedService,
   getCourseStatsService,
   updateCourseService,
@@ -19,6 +20,7 @@ import {
   getExploreCoursesQuerySchema,
   getManageCoursesQuerySchema,
   getSubmissionsAdminQuerySchema,
+  submissionInReviewCourseIdParamSchema,
 } from "./course.validation";
 import { getUploadedFiles } from "@/helpers/multerHelper";
 import { getCoursePlayerData } from "./course.player.service";
@@ -26,6 +28,9 @@ import { getCoursePlayerData } from "./course.player.service";
 type ExploreCoursesQuery = z.infer<typeof getExploreCoursesQuerySchema>;
 type ManageCoursesQuery = z.infer<typeof getManageCoursesQuerySchema>;
 type SubmissionsAdminQuery = z.infer<typeof getSubmissionsAdminQuerySchema>;
+type SubmissionInReviewParams = z.infer<
+  typeof submissionInReviewCourseIdParamSchema
+>;
 
 export const getExploreCoursesHandler = catchAsync(
   async (req: Request, res: Response) => {
@@ -94,6 +99,18 @@ export const getSubmissionsInReviewHandler = catchAsync(
         total: result.total,
         totalPages: result.totalPages,
       },
+    });
+  },
+);
+
+export const getSubmissionInReviewByIdHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { courseId } = req.params as unknown as SubmissionInReviewParams;
+    const course = await getAdminSubmissionInReviewByIdService(courseId);
+    sendSuccess({
+      res,
+      message: "In-review submission fetched successfully",
+      data: course,
     });
   },
 );

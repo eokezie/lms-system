@@ -102,6 +102,10 @@ export const getSubmissionsAdminQuerySchema = z.object({
   sort: manageSortEnum.optional().default("most_recent"),
 });
 
+export const submissionInReviewCourseIdParamSchema = z.object({
+  courseId: z.string().length(24, "Invalid course ID"),
+});
+
 export const updateCourseSchema = z.object({
   title: z.string().trim().min(1).optional(),
   description: z.string().optional(),

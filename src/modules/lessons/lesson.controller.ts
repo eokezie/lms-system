@@ -4,6 +4,7 @@ import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import {
 	createLessonService,
 	createMuxUpload,
+	deleteLessonService,
 	getLessonByIdService,
 	updateLessonService,
 	verifyMuxWebhook,
@@ -65,6 +66,17 @@ export const getLessonByIdHandler = catchAsync(
 			res,
 			message: "Lesson was fetched successfully",
 			data: lesson,
+		});
+	},
+);
+
+export const deleteLessonHandler = catchAsync(
+	async (req: Request, res: Response) => {
+		const { lessonId } = req.params;
+		await deleteLessonService(lessonId);
+		sendSuccess({
+			res,
+			message: "Lesson deleted successfully",
 		});
 	},
 );

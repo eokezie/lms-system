@@ -6,11 +6,13 @@ import {
   createMuxUploadHandler,
   muxWebhookHandler,
   updateLessonHandler,
-  getLessonByIdHandler
+  getLessonByIdHandler,
+  deleteLessonHandler,
 } from "./lesson.controller";
 import { processFiles } from "@/middleware/multer.middleware";
 import {
   createLessonSchema,
+  lessonIdParamSchema,
   muxUploadIdSchema,
   updateLessonSchema,
 } from "./lesson.validation";
@@ -37,7 +39,15 @@ router.get(
   "/:lessonId",
   authenticate,
   authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+  validate(lessonIdParamSchema, "params"),
   getLessonByIdHandler,
+);
+router.delete(
+  "/:lessonId",
+  authenticate,
+  authorize(USER_ROLES[1], USER_ROLES[2], USER_ROLES[3]),
+  validate(lessonIdParamSchema, "params"),
+  deleteLessonHandler,
 );
 router.post(
   "/mux",

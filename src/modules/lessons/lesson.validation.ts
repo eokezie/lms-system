@@ -23,3 +23,7 @@ export const updateLessonSchema = z.object({
 export const muxUploadIdSchema = z.object({
 	lessonId: z.string().min(1).trim(),
 });
+
+export const lessonIdParamSchema = z.object({
+	lessonId: z.string().length(24),
+});

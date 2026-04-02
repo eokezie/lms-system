@@ -61,3 +61,7 @@ export function updateLessonById(
 export function findLessonById(lessonId: string): Promise<ILesson | null> {
 	return Lesson.findById(lessonId).exec();
 }
+
+export function deleteLessonById(lessonId: string): Promise<ILesson | null> {
+	return Lesson.findByIdAndDelete(lessonId).exec();
+}

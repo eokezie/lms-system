@@ -3,14 +3,22 @@ import { ApiError } from "@/utils/apiError";
 import { CreateLessonDto, UpdateLessonDto } from "./lesson.type";
 import {
 	createLesson,
+	deleteLessonById,
 	findLessonById,
 	updateLessonById,
 } from "./lesson.repository";
 import { mux } from "@/libs/mux";
-import { ILesson, LessonType, MuxStatus } from "./lesson.model";
+import { Lesson, LessonType, MuxStatus } from "./lesson.model";
 import { env } from "@/config/env";
 import { UploadedFiles } from "@/helpers/multerHelper";
 import { findCourseById } from "../courses/course.repository";
+import { Enrollment } from "../enrollments/enrollment.model";
+import { LessonNote } from "../notes/note.model";
+import {
+	DiscussionReply,
+	DiscussionThread,
+} from "../discussions/discussion.model";
+import { LessonFlag } from "../lesson-flags/lesson-flag.model";
 import { uploadFile } from "@/libs/spacesFileUpload";
 import mongoose from "mongoose";
 
@@ -424,4 +432,71 @@ export async function getLessonByIdService(lessonId: string) {
 	if (!lesson) throw ApiError.notFound("No Lesson matched the provided ID");
 
 	return lesson;
+}
+
+async function deleteDiscussionsForLesson(
+	lessonId: mongoose.Types.ObjectId,
+): Promise<void> {
+	const threads = await DiscussionThread.find({ lesson: lessonId })
+		.select("_id")
+		.lean()
+		.exec();
+	if (threads.length === 0) return;
+	const threadIds = threads.map((t) => t._id);
+	await DiscussionReply.deleteMany({ thread: { $in: threadIds } }).exec();
+	await DiscussionThread.deleteMany({ _id: { $in: threadIds } }).exec();
+}
+
+export async function deleteLessonService(lessonId: string) {
+	const lesson = await findLessonById(lessonId);
+	if (!lesson) throw ApiError.notFound("No Lesson matched the provided ID");
+
+	const courseId = lesson.course;
+	const lessonOid = lesson._id;
+
+	if (courseId) {
+		const course = await findCourseById(courseId.toString());
+		if (course) {
+			for (const mod of course.courseModules) {
+				mod.lessons = mod.lessons.filter((id) => !id.equals(lessonOid));
+			}
+			await course.save();
+		}
+
+		const totalBefore = await Lesson.countDocuments({ course: courseId });
+		const newTotal = Math.max(0, totalBefore - 1);
+
+		const enrollments = await Enrollment.find({ course: courseId }).exec();
+		for (const e of enrollments) {
+			e.completedLessons = e.completedLessons.filter(
+				(id) => !id.equals(lessonOid),
+			);
+			e.lessonProgress = e.lessonProgress.filter(
+				(p) => !p.lesson.equals(lessonOid),
+			);
+			if (e.lastAccessedLessonId?.equals(lessonOid)) {
+				e.set("lastAccessedLessonId", undefined);
+			}
+			if (newTotal > 0) {
+				e.progressPercent = Math.min(
+					100,
+					Math.round((e.completedLessons.length / newTotal) * 100),
+				);
+			} else {
+				e.progressPercent = 0;
+			}
+			await e.save();
+		}
+
+		await Promise.all([
+			LessonNote.deleteMany({ course: courseId, lesson: lessonOid }).exec(),
+			LessonFlag.deleteMany({ lesson: lessonOid }).exec(),
+			deleteDiscussionsForLesson(lessonOid),
+		]);
+	}
+
+	const deleted = await deleteLessonById(lessonId);
+	if (!deleted) throw ApiError.badRequest("Failed to delete lesson");
+
+	return deleted;
 }

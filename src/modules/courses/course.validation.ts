@@ -20,9 +20,9 @@ export const createCourseSchema = z.object({
   requirements: z.string(),
   whatToLearn: z.string(),
   ctaSection: z.string(),
-  price: z.number().min(0).optional(),
-  priceNGN: z.number().min(0).optional(),
-  priceUSD: z.number().min(0).optional(),
+  price: z.coerce.number().min(0).optional(),
+  priceNGN: z.coerce.number().min(0).optional(),
+  priceUSD: z.coerce.number().min(0).optional(),
   isFree: z.boolean().optional(),
   courseModules: z.string().optional(),
 });

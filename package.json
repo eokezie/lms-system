@@ -16,6 +16,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.82.0",
 		"@mux/mux-node": "^12.8.1",
 		"aws-sdk": "^2.1693.0",
 		"bcryptjs": "^2.4.3",

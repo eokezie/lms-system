@@ -61,6 +61,9 @@ const envSchema = z.object({
   DIGITAL_OCEAN_SPACES_ACCESS_KEY_ID: z.string().optional(),
   DIGITAL_OCEAN_SPACES_SECRET_ACCESS_KEY: z.string().optional(),
 
+  // Anthropic (Claude AI)
+  ANTHROPIC_API_KEY: z.string().optional(),
+
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),

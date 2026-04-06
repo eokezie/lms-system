@@ -12,56 +12,18 @@ import {
   paymentConfirmationTemplate,
   inactivityTemplate,
 } from "@/queues/emails/templates";
-import { env } from "@/config/env";
-
-// async function sendWelcomeEmail(data: Partial<EmailJobData>): Promise<void> {
-// 	logger.info({ to: data.email }, "[email-worker] sending welcome email");
-// 	// TODO: implement with your email provider
-// }
-
-// async function sendEnrollmentConfirmation(
-// 	data: Partial<EmailJobData>,
-// ): Promise<void> {
-// 	logger.info(
-// 		{ studentId: data.studentId },
-// 		"[email-worker] sending enrollment confirmation",
-// 	);
-// 	// TODO: look up student email from DB then send
-// }
-
-// async function sendCourseCompletion(
-// 	data: Partial<EmailJobData>,
-// ): Promise<void> {
-// 	logger.info(
-// 		{ studentId: data.studentId },
-// 		"[email-worker] sending course completion email",
-// 	);
-// 	// TODO: implement
-// }
-
-// async function sendAssessmentPassed(
-// 	data: Partial<EmailJobData>,
-// ): Promise<void> {
-// 	logger.info(
-// 		{ studentId: data.studentId },
-// 		"[email-worker] sending assessment passed email",
-// 	);
-// 	// TODO: implement
-// }
+import { resendEmailFunc } from "@/libs/resend-mail-service";
 
 async function sendEmail(
   to: string,
   subject: string,
   html: string,
 ): Promise<void> {
-  // Lazy import to avoid initialization issues
-  const transporter = (await import("@/config/mailer")).default;
-
-  await transporter.sendMail({
-    from: `"Infinix Tech" <${env.EMAIL_FROM}>`,
+  await resendEmailFunc({
     to,
     subject,
     html,
+    text: "",
   });
 }
 

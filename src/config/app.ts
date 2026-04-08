@@ -26,6 +26,7 @@ import lessonFlagRoutes from "@/modules/lesson-flags/lesson-flag.routes";
 import studentDashboardRoutes from "@/modules/student-dashboard/student-dashboard.routes";
 import adminSettingsRoutes from "@/modules/admin-settings/admin-settings.routes";
 import courseAdvisoryRoutes from "@/modules/course-advisory/course-advisory.routes";
+import forumRoutes from "@/modules/forum/forum.routes";
 
 const app = express();
 
@@ -109,6 +110,7 @@ app.use("/api/v1/lesson-flags", lessonFlagRoutes);
 app.use("/api/v1/progress", progressRoutes);
 app.use("/api/v1/student/dashboard", studentDashboardRoutes);
 app.use("/api/v1/course-advisory", courseAdvisoryRoutes);
+app.use("/api/v1/forum", forumRoutes);
 
 // --- 404 ---
 app.use((_req, res) => {

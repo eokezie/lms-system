@@ -28,6 +28,7 @@ import adminSettingsRoutes from "@/modules/admin-settings/admin-settings.routes"
 import courseAdvisoryRoutes from "@/modules/course-advisory/course-advisory.routes";
 import topicsRoutes from "@/modules/topics/topics.routes";
 import postsRoutes from "@/modules/posts/posts.routes";
+import forumRoutes from "@/modules/forum/forum.routes";
 
 const app = express();
 
@@ -113,6 +114,7 @@ app.use("/api/v1/student/dashboard", studentDashboardRoutes);
 app.use("/api/v1/course-advisory", courseAdvisoryRoutes);
 app.use("/api/v1/topics", topicsRoutes);
 app.use("/api/v1/posts", postsRoutes);
+app.use("/api/v1/forum", forumRoutes);
 
 // --- 404 ---
 app.use((_req, res) => {

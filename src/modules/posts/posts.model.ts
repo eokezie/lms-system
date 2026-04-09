@@ -50,5 +50,6 @@ const postSchema = new Schema<IPost>(
 
 postSchema.index({ topic: 1, createdAt: -1 });
 postSchema.index({ upvotes: -1 });
+postSchema.index({ title: "text" });
 
 export const Posts = mongoose.model<IPost>("Posts", postSchema);

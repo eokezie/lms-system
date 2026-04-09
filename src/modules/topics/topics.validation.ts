@@ -9,5 +9,5 @@ export const updateTopicsSchema = z.object({
 });
 
 export const topicIdOrSlugParamSchema = z.object({
-  id: z.string().min(1, "Topic id or slug required").max(200),
+  topicId: z.string().min(1, "Topic id or slug required").max(200),
 });

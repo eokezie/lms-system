@@ -5,8 +5,21 @@ export function createTopics(dto: CreateTopicsDto): Promise<ITopics> {
   return Topics.create(dto);
 }
 
-export function findAllTopics() {
-  return Topics.find().lean();
+export function findAllTopics(
+  requestObj: { label?: string },
+  limit: number,
+  page: number,
+) {
+  const skip = (page - 1) * limit;
+  return Topics.find(requestObj)
+    .lean()
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+}
+
+export function countAllTopics(requestObj: { label?: string }) {
+  return Topics.countDocuments(requestObj);
 }
 
 export function findTopicBySlug(slug: string) {
@@ -19,4 +32,8 @@ export function findTopicById(topicId: string) {
 
 export function findTopicByIdAndDelete(topicId: string) {
   return Topics.findByIdAndDelete(topicId).exec();
+}
+
+export function increasePostCountOfTopic(topicId: string) {
+  return Topics.updateOne({ _id: topicId }, { $inc: { postCount: 1 } });
 }

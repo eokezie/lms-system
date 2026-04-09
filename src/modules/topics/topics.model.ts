@@ -6,6 +6,7 @@ export interface ITopics extends Document {
   slug: string;
   createdBy: mongoose.Types.ObjectId;
   isActive: boolean;
+  postCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +17,7 @@ const topicsSchema = new Schema<ITopics>(
     slug: { type: String, unique: true, lowercase: true, index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     isActive: { type: Boolean, default: true },
+    postCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

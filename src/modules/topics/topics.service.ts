@@ -1,5 +1,6 @@
 import { CreateTopicsDto, UpdateTopicsDto } from "./topics.types";
 import {
+  countAllTopics,
   createTopics,
   findAllTopics,
   findTopicById,
@@ -7,7 +8,6 @@ import {
   findTopicBySlug,
 } from "./topics.repository";
 import { logger } from "@/utils/logger";
-import { findCountOfPostsPerTopic } from "../posts/posts.repository";
 import { ApiError } from "@/utils/apiError";
 
 export async function createTopicsService(dto: CreateTopicsDto) {
@@ -27,19 +27,26 @@ export async function createTopicsService(dto: CreateTopicsDto) {
   return topics;
 }
 
-export async function getTopicsAndCountPerPost(): Promise<any> {
-  const [posts, postsCount] = await Promise.all([
-    findAllTopics(),
-    findCountOfPostsPerTopic(),
+export async function getAllTopics(
+  limit: number,
+  page: number,
+  searchQuery?: string,
+) {
+  const requestObj: any = {};
+  if (searchQuery) requestObj.label = { $regex: searchQuery, $options: "i" };
+
+  const [topics, countOfTopics] = await Promise.all([
+    findAllTopics(requestObj, limit, page),
+    countAllTopics(requestObj),
   ]);
 
-  const countMap = new Map(postsCount.map((c) => [c._id.toString(), c.count]));
-
-  const result = posts.map((topic) => ({
-    ...topic,
-    postCount: countMap.get(topic._id.toString()) ?? 0,
-  }));
-  return result;
+  return {
+    topics,
+    total: countOfTopics,
+    page,
+    limit,
+    totalPages: Math.ceil(countOfTopics / limit),
+  };
 }
 
 export async function updateTopicsService(
@@ -49,7 +56,13 @@ export async function updateTopicsService(
   const topic = await findTopicById(topicId);
   if (!topic) throw ApiError.notFound("No Topic matched the provided ID");
 
+  const slug = dto.label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
   topic.label = dto.label;
+  topic.slug = slug;
   await topic.save();
   return topic;
 }

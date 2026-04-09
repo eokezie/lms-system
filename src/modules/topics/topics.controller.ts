@@ -4,7 +4,7 @@ import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import {
   createTopicsService,
   deleteTopicsService,
-  getTopicsAndCountPerPost,
+  getAllTopics,
   updateTopicsService,
 } from "./topics.service";
 
@@ -15,19 +15,32 @@ export const createTopicHandler = catchAsync(
     const topic = await createTopicsService({ label, createdBy: userId });
     sendCreated({
       res,
-      message: "Topic created successfully",
+      message: "Topic was created successfully",
       data: topic,
     });
   },
 );
 
-export const getTopicsAndPostCountHandler = catchAsync(
-  async (_req: Request, res: Response) => {
-    const topics = await getTopicsAndCountPerPost();
+export const getAllTopicsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { limit, page, search } = req.query;
+    const documentLimit = Number(limit) || 10;
+    const pageNumber = Number(page) || 1;
+    const response = await getAllTopics(
+      documentLimit,
+      pageNumber,
+      search as any,
+    );
     sendSuccess({
       res,
       message: "Topics were fetched successfully",
-      data: topics,
+      data: response.topics,
+      meta: {
+        page: response.page,
+        limit: response.limit,
+        total: response.total,
+        totalPages: response.totalPages,
+      },
     });
   },
 );

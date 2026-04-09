@@ -10,9 +10,9 @@ import {
 import {
   createTopicHandler,
   deleteTopicHandler,
+  getAllTopicsHandler,
   updateTopicHandler,
 } from "./topics.controller";
-import { getTopicsAndCountPerPost } from "./topics.service";
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.post(
   validate(createTopicsSchema),
   createTopicHandler,
 );
-router.get("/", getTopicsAndCountPerPost);
+router.get("/", getAllTopicsHandler);
 router.put(
   "/:topicId",
   authorize(USER_ROLES[2], USER_ROLES[3]),

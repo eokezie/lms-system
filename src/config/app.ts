@@ -26,33 +26,35 @@ import lessonFlagRoutes from "@/modules/lesson-flags/lesson-flag.routes";
 import studentDashboardRoutes from "@/modules/student-dashboard/student-dashboard.routes";
 import adminSettingsRoutes from "@/modules/admin-settings/admin-settings.routes";
 import courseAdvisoryRoutes from "@/modules/course-advisory/course-advisory.routes";
+import topicsRoutes from "@/modules/topics/topics.routes";
+import postsRoutes from "@/modules/posts/posts.routes";
 
 const app = express();
 
 // --- Security ---
 app.use(helmet());
 app.use(
-	cors({
-		origin:
-			env.NODE_ENV === "production"
-				? process.env.ALLOWED_ORIGINS?.split(",")
-				: "*",
-		credentials: true,
-	}),
+  cors({
+    origin:
+      env.NODE_ENV === "production"
+        ? process.env.ALLOWED_ORIGINS?.split(",")
+        : "*",
+    credentials: true,
+  }),
 );
 
 // --- Rate limiting ---
 app.use(
-	rateLimit({
-		windowMs: env.RATE_LIMIT_WINDOW_MS,
-		max: env.RATE_LIMIT_MAX,
-		standardHeaders: true,
-		legacyHeaders: false,
-		message: {
-			success: false,
-			message: "Too many requests, please try again later.",
-		},
-	}),
+  rateLimit({
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      success: false,
+      message: "Too many requests, please try again later.",
+    },
+  }),
 );
 
 app.use("/api/v1/mux", muxRoutes); // Placed before Express body parser for Mux webhook signature
@@ -74,22 +76,22 @@ app.use(passport.initialize() as any);
 // Outputs structured JSON in production, pretty-printed in dev
 // Each request automatically gets a unique reqId for tracing
 app.use(
-	pinoHttp({
-		logger,
-		// Don't log health checks — too noisy
-		autoLogging: {
-			ignore: (req) => req.url === "/health",
-		},
-		customSuccessMessage: (req, res) =>
-			`${req.method} ${req.url} — ${res.statusCode}`,
-		customErrorMessage: (req, res, err) =>
-			`${req.method} ${req.url} — ${res.statusCode} — ${err.message}`,
-	}),
+  pinoHttp({
+    logger,
+    // Don't log health checks — too noisy
+    autoLogging: {
+      ignore: (req) => req.url === "/health",
+    },
+    customSuccessMessage: (req, res) =>
+      `${req.method} ${req.url} — ${res.statusCode}`,
+    customErrorMessage: (req, res, err) =>
+      `${req.method} ${req.url} — ${res.statusCode} — ${err.message}`,
+  }),
 );
 
 // --- Health check ---
 app.get("/health", (_req, res) => {
-	res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // --- Routes ---
@@ -109,10 +111,12 @@ app.use("/api/v1/lesson-flags", lessonFlagRoutes);
 app.use("/api/v1/progress", progressRoutes);
 app.use("/api/v1/student/dashboard", studentDashboardRoutes);
 app.use("/api/v1/course-advisory", courseAdvisoryRoutes);
+app.use("/api/v1/topics", topicsRoutes);
+app.use("/api/v1/posts", postsRoutes);
 
 // --- 404 ---
 app.use((_req, res) => {
-	res.status(404).json({ success: false, message: "Route not found" });
+  res.status(404).json({ success: false, message: "Route not found" });
 });
 
 // --- Global error handler (must be last) ---

@@ -78,6 +78,28 @@ export async function findPaymentsPaginated(
   return { payments: payments as unknown as IPayment[], total };
 }
 
+export async function findStudentPaymentsPaginated(
+  studentId: string,
+  page: number,
+  limit: number,
+): Promise<{ payments: IPayment[]; total: number }> {
+  const skip = (page - 1) * limit;
+  const filter = {
+    student: new mongoose.Types.ObjectId(studentId),
+  };
+  const [payments, total] = await Promise.all([
+    Payment.find(filter)
+      .populate("course", "title slug coverImage")
+      .sort({ paidAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
+    Payment.countDocuments(filter),
+  ]);
+  return { payments: payments as unknown as IPayment[], total };
+}
+
 export function updatePaymentRefund(
   id: string,
   refundedAt: Date,

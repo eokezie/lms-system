@@ -108,6 +108,7 @@ export interface IUser extends Document {
   bio?: string;
   careerGoal?: string;
   isPrivate?: boolean;
+  stripeCustomerId?: string;
   isEmailVerified: boolean;
   googleId?: string; // set when user signs in with Google
   facebookId?: string; // set when user signs in with Facebook
@@ -162,6 +163,7 @@ const userSchema = new Schema<IUser>(
     bio: { type: String, maxlength: 500 },
     careerGoal: { type: String, maxlength: 500 },
     isPrivate: { type: Boolean, default: false },
+    stripeCustomerId: { type: String, index: true },
     isEmailVerified: { type: Boolean, default: false },
     refreshTokens: [
       {

@@ -6,7 +6,12 @@ import {
   listPaymentsService,
   refundPaymentService,
   getPaymentStatsService,
+  createSetupIntentService,
+  listMyPaymentMethodsService,
+  detachPaymentMethodService,
+  listMyPaymentsService,
 } from "./payment.service";
+import { paymentMethodIdParamSchema } from "./payment.validation";
 
 /** Minimal type for Stripe checkout.session.completed event */
 interface StripeCheckoutSession {
@@ -113,6 +118,73 @@ export const getPaymentStatsHandler = catchAsync(
       res,
       message: "Payment stats fetched successfully",
       data: stats,
+    });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Student-facing handlers
+// ---------------------------------------------------------------------------
+
+export const createSetupIntentHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const data = await createSetupIntentService(userId);
+    sendCreated({
+      res,
+      message: "Setup intent created",
+      data,
+    });
+  },
+);
+
+export const listMyPaymentMethodsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const data = await listMyPaymentMethodsService(userId);
+    sendSuccess({
+      res,
+      message: "Payment methods fetched successfully",
+      data,
+    });
+  },
+);
+
+export const detachPaymentMethodHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { paymentMethodId } = paymentMethodIdParamSchema.parse(req.params);
+    await detachPaymentMethodService(userId, paymentMethodId);
+    sendSuccess({
+      res,
+      message: "Payment method removed",
+      data: null,
+    });
+  },
+);
+
+export const listMyPaymentsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { page, limit } = req.query as {
+      page?: number;
+      limit?: number;
+    };
+    const result = await listMyPaymentsService(
+      userId,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
+    sendSuccess({
+      res,
+      message: "Payments fetched successfully",
+      data: result.payments,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
     });
   },
 );

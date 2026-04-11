@@ -7,11 +7,16 @@ import {
   listPaymentsHandler,
   refundPaymentHandler,
   getPaymentStatsHandler,
+  createSetupIntentHandler,
+  listMyPaymentMethodsHandler,
+  detachPaymentMethodHandler,
+  listMyPaymentsHandler,
 } from "./payment.controller";
 import {
   createCheckoutSessionSchema,
   paymentIdParamSchema,
   listPaymentsQuerySchema,
+  paymentMethodIdParamSchema,
 } from "./payment.validation";
 
 const router = Router();
@@ -21,6 +26,25 @@ router.post(
   authenticate,
   validate(createCheckoutSessionSchema),
   createCheckoutSessionHandler,
+);
+
+// --- Student-facing: payment history + saved cards ---
+router.get(
+  "/my",
+  authenticate,
+  validate(listPaymentsQuerySchema, "query"),
+  listMyPaymentsHandler,
+);
+
+router.post("/setup-intent", authenticate, createSetupIntentHandler);
+
+router.get("/methods", authenticate, listMyPaymentMethodsHandler);
+
+router.delete(
+  "/methods/:paymentMethodId",
+  authenticate,
+  validate(paymentMethodIdParamSchema, "params"),
+  detachPaymentMethodHandler,
 );
 
 router.get(

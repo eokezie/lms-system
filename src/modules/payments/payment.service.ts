@@ -12,11 +12,13 @@ import {
   findPaymentByStripeSessionId,
   findPaymentById,
   findPaymentsPaginated,
+  findStudentPaymentsPaginated,
   updatePaymentRefund,
   getTotalRevenue,
   getRevenueByCategory,
   countSucceededPaymentsByStudentAndCourse,
 } from "./payment.repository";
+import { updateUserById } from "@/modules/users/user.repository";
 import { createAbandonedCheckoutRecord } from "@/modules/admin-dashboard/abandoned-checkout.repository";
 import { findCourseById } from "@/modules/courses/course.repository";
 import {
@@ -372,5 +374,101 @@ export async function getPaymentStatsService() {
   return {
     totalRevenue,
     revenueByCategory: byCategory,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Student-facing: payment history + saved cards
+// ---------------------------------------------------------------------------
+
+export async function getOrCreateStripeCustomerForUser(
+  userId: string,
+): Promise<string> {
+  if (!isStripeConfigured()) {
+    throw ApiError.badRequest("Payments are not configured");
+  }
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  if (user.stripeCustomerId) return user.stripeCustomerId;
+
+  const stripe = getStripe();
+  const customer = await stripe.customers.create({
+    email: user.email,
+    name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || undefined,
+    metadata: { userId },
+  });
+
+  await updateUserById(userId, { stripeCustomerId: customer.id } as any);
+  logger.info(
+    { userId, stripeCustomerId: customer.id },
+    "[payment] Created Stripe customer",
+  );
+  return customer.id;
+}
+
+export async function createSetupIntentService(userId: string) {
+  const customerId = await getOrCreateStripeCustomerForUser(userId);
+  const stripe = getStripe();
+  const intent = await stripe.setupIntents.create({
+    customer: customerId,
+    payment_method_types: ["card"],
+    usage: "off_session",
+  });
+  return { clientSecret: intent.client_secret, customerId };
+}
+
+export async function listMyPaymentMethodsService(userId: string) {
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  if (!user.stripeCustomerId) return [];
+
+  const stripe = getStripe();
+  const result = await stripe.paymentMethods.list({
+    customer: user.stripeCustomerId,
+    type: "card",
+  });
+
+  return result.data.map((pm) => ({
+    id: pm.id,
+    brand: pm.card?.brand ?? "card",
+    last4: pm.card?.last4 ?? "",
+    expMonth: pm.card?.exp_month ?? null,
+    expYear: pm.card?.exp_year ?? null,
+  }));
+}
+
+export async function detachPaymentMethodService(
+  userId: string,
+  paymentMethodId: string,
+) {
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  if (!user.stripeCustomerId) {
+    throw ApiError.notFound("Payment method not found");
+  }
+  const stripe = getStripe();
+  const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+  if (pm.customer !== user.stripeCustomerId) {
+    throw ApiError.forbidden("Payment method does not belong to this user");
+  }
+  await stripe.paymentMethods.detach(paymentMethodId);
+}
+
+export async function listMyPaymentsService(
+  userId: string,
+  page: number,
+  limit: number,
+) {
+  const { payments, total } = await findStudentPaymentsPaginated(
+    userId,
+    page,
+    limit,
+  );
+  return {
+    payments,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit) || 1,
   };
 }

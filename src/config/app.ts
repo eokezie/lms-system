@@ -27,6 +27,7 @@ import studentDashboardRoutes from "@/modules/student-dashboard/student-dashboar
 import adminSettingsRoutes from "@/modules/admin-settings/admin-settings.routes";
 import courseAdvisoryRoutes from "@/modules/course-advisory/course-advisory.routes";
 import forumRoutes from "@/modules/forum/forum.routes";
+import bookmarkRoutes from "@/modules/bookmarks/bookmark.routes";
 
 const app = express();
 
@@ -111,6 +112,7 @@ app.use("/api/v1/progress", progressRoutes);
 app.use("/api/v1/student/dashboard", studentDashboardRoutes);
 app.use("/api/v1/course-advisory", courseAdvisoryRoutes);
 app.use("/api/v1/forum", forumRoutes);
+app.use("/api/v1/bookmarks", bookmarkRoutes);
 
 // --- 404 ---
 app.use((_req, res) => {

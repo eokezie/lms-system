@@ -3,6 +3,8 @@ import {
   getMe,
   updateMe,
   changePassword,
+  deleteMe,
+  uploadProfileMedia,
   createUserHandler,
   userOnboardingHandler,
   submitInstructorVerificationHandler,
@@ -23,6 +25,7 @@ import {
 } from "./user.controller";
 import { authenticate, authorize } from "@/middleware/auth.middleware";
 import { validate } from "@/middleware/validate";
+import { processProfileMediaFiles } from "@/middleware/multer.middleware";
 import {
   activityQuerySchema,
   notificationPreferencesPatchSchema,
@@ -62,6 +65,12 @@ router.patch(
   patchNotificationPreferencesHandler,
 );
 router.patch("/me", validate(updateProfileSchema), updateMe);
+router.post(
+  "/me/media",
+  processProfileMediaFiles,
+  uploadProfileMedia,
+);
+router.delete("/me", deleteMe);
 router.patch("/onboarding", authorize(USER_ROLES[0]), userOnboardingHandler);
 router.patch("/me/password", validate(changePasswordSchema), changePassword);
 router.post(

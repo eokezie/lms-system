@@ -45,7 +45,10 @@ export interface UpdateUserDto {
 	firstName?: string;
 	lastName?: string;
 	bio?: string;
+	careerGoal?: string;
+	isPrivate?: boolean;
 	avatar?: string;
+	banner?: string;
 	preferences?: IPreferences;
 	hasOnboarded?: boolean;
 }

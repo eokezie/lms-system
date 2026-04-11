@@ -79,6 +79,13 @@ export async function updateUserForOnboarding(
   return user;
 }
 
+export async function deleteUserAccount(userId: string): Promise<void> {
+  const user = await findUserById(userId);
+  if (!user) throw ApiError.notFound("User not found");
+  await clearAllRefreshTokens(userId);
+  await user.deleteOne();
+}
+
 export async function changeUserPassword(
   userId: string,
   currentPassword: string,

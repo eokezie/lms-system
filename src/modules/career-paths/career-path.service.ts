@@ -19,6 +19,8 @@ import {
   dropStudentCareerPathEnrollment,
   markCareerPathEnrollmentCompleted,
   getCareerPathEnrollmentStats,
+  listStudentCareerPathEnrollments,
+  type StudentCareerPathEnrollmentItem,
 } from "./career-path-enrollment.repository";
 import type { z } from "zod";
 import {
@@ -266,6 +268,12 @@ export async function completeCareerPathEnrollmentService(
   studentId: string,
 ): Promise<void> {
   await markCareerPathEnrollmentCompleted(studentId, careerPathId);
+}
+
+export async function listMyCareerPathsService(
+  studentId: string,
+): Promise<StudentCareerPathEnrollmentItem[]> {
+  return listStudentCareerPathEnrollments(studentId);
 }
 
 export function exploreCareerPathsService(

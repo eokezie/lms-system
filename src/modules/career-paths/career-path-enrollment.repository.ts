@@ -86,6 +86,47 @@ export async function markCareerPathEnrollmentCompleted(
   }
 }
 
+export interface StudentCareerPathEnrollmentItem {
+  _id: string;
+  status: CareerPathEnrollmentStatusValue;
+  enrolledAt: Date;
+  completedAt?: Date;
+  careerPath: Record<string, unknown> | null;
+}
+
+type CareerPathEnrollmentStatusValue = "active" | "completed" | "dropped";
+
+export async function listStudentCareerPathEnrollments(
+  studentId: string,
+): Promise<StudentCareerPathEnrollmentItem[]> {
+  const docs = await CareerPathEnrollment.find({
+    student: new mongoose.Types.ObjectId(studentId),
+    status: { $in: ["active", "completed"] },
+  })
+    .sort({ enrolledAt: -1 })
+    .populate({
+      path: "careerPath",
+      select:
+        "name slug shortDescription thumbnail careerOutcome industryRecognizedCertificate estimatedDuration skillLevel courses status enrollmentCount createdAt updatedAt",
+      populate: {
+        path: "courses",
+        select:
+          "title slug coverImage summary estimatedCompletionTime totalDuration averageRating",
+      },
+    })
+    .lean()
+    .exec();
+
+  return docs.map((doc) => ({
+    _id: String(doc._id),
+    status: doc.status as CareerPathEnrollmentStatusValue,
+    enrolledAt: doc.enrolledAt,
+    completedAt: doc.completedAt,
+    careerPath:
+      (doc.careerPath as unknown as Record<string, unknown> | null) ?? null,
+  }));
+}
+
 export async function getCareerPathEnrollmentStats(): Promise<{
   totalUniqueStudents: number;
   totalEnrollmentsActiveOrCompleted: number;

@@ -6,7 +6,18 @@ export const updateProfileSchema = z.object({
 	firstName: z.string().min(1).max(50).trim().optional(),
 	lastName: z.string().min(1).max(50).trim().optional(),
 	bio: z.string().max(500).trim().optional(),
-	avatar: z.string().url("Avatar must be a valid URL").optional(),
+	careerGoal: z.string().max(500).trim().optional(),
+	isPrivate: z.boolean().optional(),
+	avatar: z
+		.string()
+		.url("Avatar must be a valid URL")
+		.optional()
+		.or(z.literal("")),
+	banner: z
+		.string()
+		.url("Banner must be a valid URL")
+		.optional()
+		.or(z.literal("")),
 });
 
 export const changePasswordSchema = z.object({

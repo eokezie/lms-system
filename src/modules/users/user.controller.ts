@@ -3,6 +3,7 @@ import {
   getUserProfile,
   updateUserProfile,
   changeUserPassword,
+  deleteUserAccount,
   createUserService,
   updateUserForOnboarding,
   submitInstructorVerificationService,
@@ -113,6 +114,43 @@ export const changePassword = catchAsync(
     const { currentPassword, newPassword } = req.body;
     await changeUserPassword(req.user!.userId, currentPassword, newPassword);
     sendSuccess({ res, message: "Password changed successfully" });
+  },
+);
+
+export const deleteMe = catchAsync(async (req: Request, res: Response) => {
+  await deleteUserAccount(req.user!.userId);
+  sendSuccess({ res, message: "Account deleted successfully", data: null });
+});
+
+export const uploadProfileMedia = catchAsync(
+  async (req: Request, res: Response) => {
+    const files = (req.files as MulterFiles | undefined) ?? {};
+    const avatarFile = files["avatar"]?.[0];
+    const bannerFile = files["banner"]?.[0];
+
+    if (!avatarFile && !bannerFile) {
+      throw ApiError.badRequest("Provide an avatar or banner image");
+    }
+    if (!isSpacesConfigured()) {
+      throw ApiError.badRequest(
+        "File upload is not configured (DigitalOcean Spaces keys missing)",
+      );
+    }
+
+    const userId = req.user!.userId;
+    const update: { avatar?: string; banner?: string } = {};
+
+    if (avatarFile) {
+      const uploaded = await uploadFile(avatarFile, `Users/${userId}/avatar`);
+      update.avatar = uploaded.fileUrl;
+    }
+    if (bannerFile) {
+      const uploaded = await uploadFile(bannerFile, `Users/${userId}/banner`);
+      update.banner = uploaded.fileUrl;
+    }
+
+    const user = await updateUserProfile(userId, update);
+    sendSuccess({ res, message: "Profile media updated", data: { user } });
   },
 );
 

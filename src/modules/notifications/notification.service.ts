@@ -7,11 +7,13 @@ import { createEmailQueue } from "@/queues/email.queue";
 import {
   countUnreadForUser,
   createNotificationDoc,
+  deleteNotificationById,
   findNotificationsForUser,
   markAllNotificationsRead,
   markNotificationRead,
   type CreateNotificationInput,
 } from "./notification.repository";
+import { ApiError } from "@/utils/apiError";
 import type { ListNotificationsQuery } from "./notification.validation";
 
 const emailQueue = createEmailQueue(redisConnection);
@@ -46,6 +48,14 @@ export async function markNotificationReadService(
 
 export async function markAllNotificationsReadService(userId: string) {
   return markAllNotificationsRead(userId);
+}
+
+export async function deleteNotificationService(
+  userId: string,
+  notificationId: string,
+) {
+  const deleted = await deleteNotificationById(userId, notificationId);
+  if (!deleted) throw ApiError.notFound("Notification not found");
 }
 
 async function safeCreate(input: CreateNotificationInput): Promise<void> {

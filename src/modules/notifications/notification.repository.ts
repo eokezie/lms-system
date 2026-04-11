@@ -113,3 +113,14 @@ export async function markAllNotificationsRead(
   ).exec();
   return result.modifiedCount;
 }
+
+export async function deleteNotificationById(
+  userId: string,
+  notificationId: string,
+): Promise<boolean> {
+  const result = await Notification.deleteOne({
+    _id: new mongoose.Types.ObjectId(notificationId),
+    user: new mongoose.Types.ObjectId(userId),
+  }).exec();
+  return result.deletedCount > 0;
+}

@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { catchAsync } from "@/utils/catchAsync";
 import { sendSuccess } from "@/utils/apiResponse";
 import {
+  deleteNotificationService,
   getMyUnreadCountService,
   listMyNotificationsService,
   markAllNotificationsReadService,
@@ -68,6 +69,19 @@ export const markAllNotificationsReadHandler = catchAsync(
       res,
       message: "Notifications marked as read",
       data: { updated },
+    });
+  },
+);
+
+export const deleteNotificationHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { id } = notificationIdParamSchema.parse(req.params);
+    await deleteNotificationService(userId, id);
+    sendSuccess({
+      res,
+      message: "Notification deleted successfully",
+      data: null,
     });
   },
 );

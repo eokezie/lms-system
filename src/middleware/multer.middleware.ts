@@ -15,3 +15,8 @@ export const processFiles: RequestHandler = processFile.fields([
   { name: "thumbnail", maxCount: 1 },
   { name: "resources", maxCount: 10 }, // adjust cap as needed
 ]) as unknown as RequestHandler;
+
+export const processProfileMediaFiles: RequestHandler = processFile.fields([
+  { name: "avatar", maxCount: 1 },
+  { name: "banner", maxCount: 1 },
+]) as unknown as RequestHandler;

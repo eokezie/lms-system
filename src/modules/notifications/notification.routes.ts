@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authenticate } from "@/middleware/auth.middleware";
 import { validate } from "@/middleware/validate";
 import {
+  deleteNotificationHandler,
   getMyUnreadCountHandler,
   listMyNotificationsHandler,
   markAllNotificationsReadHandler,
@@ -31,6 +32,12 @@ router.patch(
   "/:id/read",
   validate(notificationIdParamSchema, "params"),
   markNotificationReadHandler,
+);
+
+router.delete(
+  "/:id",
+  validate(notificationIdParamSchema, "params"),
+  deleteNotificationHandler,
 );
 
 export default router;

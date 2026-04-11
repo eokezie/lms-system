@@ -104,7 +104,10 @@ export interface IUser extends Document {
   passwordHash: string;
   role: UserRole;
   avatar?: string;
+  banner?: string;
   bio?: string;
+  careerGoal?: string;
+  isPrivate?: boolean;
   isEmailVerified: boolean;
   googleId?: string; // set when user signs in with Google
   facebookId?: string; // set when user signs in with Facebook
@@ -155,7 +158,10 @@ const userSchema = new Schema<IUser>(
       default: "student",
     },
     avatar: { type: String },
+    banner: { type: String },
     bio: { type: String, maxlength: 500 },
+    careerGoal: { type: String, maxlength: 500 },
+    isPrivate: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
     refreshTokens: [
       {

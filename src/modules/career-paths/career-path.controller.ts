@@ -13,6 +13,7 @@ import {
   enrollInCareerPathService,
   dropCareerPathEnrollmentService,
   completeCareerPathEnrollmentService,
+  listMyCareerPathsService,
 } from "./career-path.service";
 import {
   listCareerPathsQuerySchema,
@@ -93,6 +94,18 @@ export const dropCareerPathEnrollmentHandler = catchAsync(
       res,
       message: "Left career path successfully",
       data: null,
+    });
+  },
+);
+
+export const listMyCareerPathsHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const data = await listMyCareerPathsService(studentId);
+    sendSuccess({
+      res,
+      message: "Career path enrollments fetched successfully",
+      data,
     });
   },
 );

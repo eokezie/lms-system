@@ -14,6 +14,7 @@ import {
   enrollCareerPathHandler,
   dropCareerPathEnrollmentHandler,
   completeCareerPathEnrollmentHandler,
+  listMyCareerPathsHandler,
 } from "./career-path.controller";
 import {
   createCareerPathSchema,
@@ -42,6 +43,9 @@ router.get(
   exploreCareerPathsHandler,
 );
 
+/** Students: list career paths the current student is enrolled in */
+router.get("/my", authorize(USER_ROLES[0]), listMyCareerPathsHandler);
+
 /** Admin / instructor: manage list */
 router.get(
   "/",
@@ -50,7 +54,7 @@ router.get(
   listCareerPathsAdminHandler,
 );
 
-/** Students: enroll / leave / mark completed (for stats & UX) */
+/** Students: enroll / leave / mark completed (for stats) */
 router.post(
   "/:id/enroll",
   authorize(USER_ROLES[0]),

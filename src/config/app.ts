@@ -47,18 +47,25 @@ app.use(
 );
 
 // --- Rate limiting ---
-app.use(
-	rateLimit({
-		windowMs: env.RATE_LIMIT_WINDOW_MS,
-		max: env.RATE_LIMIT_MAX,
-		standardHeaders: true,
-		legacyHeaders: false,
-		message: {
-			success: false,
-			message: "Too many requests, please try again later.",
-		},
-	}),
-);
+const globalLimiter = rateLimit({
+	windowMs: env.RATE_LIMIT_WINDOW_MS,
+	max: env.RATE_LIMIT_MAX,
+	standardHeaders: true,
+	legacyHeaders: false,
+	skip: (req) => {
+		const path = req.path || req.url || "";
+		return (
+			path.startsWith("/api/v1/support/") ||
+			path.startsWith("/api/v1/notifications") ||
+			path.startsWith("/socket.io")
+		);
+	},
+	message: {
+		success: false,
+		message: "Too many requests, please try again later.",
+	},
+});
+app.use(globalLimiter);
 
 app.use("/api/v1/mux", muxRoutes); // Placed before Express body parser for Mux webhook signature
 

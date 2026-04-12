@@ -18,10 +18,6 @@ import type { ListNotificationsQuery } from "./notification.validation";
 
 const emailQueue = createEmailQueue(redisConnection);
 
-// ---------------------------------------------------------------------------
-// In-app notification service (used by the controller / drawer)
-// ---------------------------------------------------------------------------
-
 export async function createNotificationService(
   input: CreateNotificationInput,
 ) {
@@ -174,6 +170,77 @@ async function onDiscussionReply({
   });
 }
 
+async function onSupportAgentReplied({
+  conversationId,
+  studentId,
+  preview,
+}: {
+  conversationId: string;
+  studentId: string;
+  preview?: string;
+}) {
+  await safeCreate({
+    user: studentId,
+    type: "discussion_reply",
+    title: preview
+      ? `Support agent: "${preview.slice(0, 80)}"`
+      : "You have a new reply from support",
+    link: `/home`,
+    metadata: { conversationId },
+  });
+}
+
+async function onSupportUserReplied({
+  conversationId,
+  agentId,
+  preview,
+}: {
+  conversationId: string;
+  agentId: string;
+  preview?: string;
+}) {
+  await safeCreate({
+    user: agentId,
+    type: "discussion_reply",
+    title: preview
+      ? `Student: "${preview.slice(0, 80)}"`
+      : "A student replied in a support chat",
+    link: `/chat`,
+    metadata: { conversationId },
+  });
+}
+
+async function onSupportHandoffRequested({
+  conversationId,
+  userId,
+}: {
+  conversationId: string;
+  userId: string;
+}) {
+  try {
+    const { User } = await import("@/modules/users/user.model");
+    const admins = await User.find({
+      role: { $in: ["admin", "super_admin"] },
+      studentAccountStatus: { $ne: "suspended" },
+    })
+      .select("_id")
+      .lean()
+      .exec();
+    for (const admin of admins) {
+      await safeCreate({
+        user: String(admin._id),
+        type: "generic",
+        title: "A student is waiting for a support agent",
+        message: "Open the chat inbox to claim the conversation.",
+        link: `/chat`,
+        metadata: { conversationId, studentUserId: userId },
+      });
+    }
+  } catch (err) {
+    logger.error({ err }, "[notifications] handoff notification failed");
+  }
+}
+
 // --- Registration ---
 // Call this once at startup in server.ts
 
@@ -183,6 +250,9 @@ export function registerNotificationListeners(): void {
   eventBus.on("user.registered", onUserRegistered);
   eventBus.on("assessment.submitted", onAssessmentSubmitted);
   eventBus.on("discussion.reply", onDiscussionReply);
+  eventBus.on("support.agent.replied", onSupportAgentReplied);
+  eventBus.on("support.user.replied", onSupportUserReplied);
+  eventBus.on("support.handoff.requested", onSupportHandoffRequested);
 
   logger.info("[notifications] Event listeners registered");
 }

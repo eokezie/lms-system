@@ -169,6 +169,16 @@ export async function createMessage(
   return populated as unknown as ISupportMessage;
 }
 
+export async function markConversationRead(
+  conversationId: string,
+  field: "lastReadByUser" | "lastReadByAgent",
+): Promise<void> {
+  await SupportConversation.updateOne(
+    { _id: new mongoose.Types.ObjectId(conversationId) },
+    { $set: { [field]: new Date() } },
+  ).exec();
+}
+
 export async function updateConversation(
   id: string,
   patch: Partial<{

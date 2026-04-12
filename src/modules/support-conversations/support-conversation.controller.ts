@@ -4,6 +4,7 @@ import { catchAsync } from "@/utils/catchAsync";
 import { sendCreated, sendSuccess } from "@/utils/apiResponse";
 import { ApiError } from "@/utils/apiError";
 import {
+  checkUserOnline,
   claimConversationService,
   closeConversationService,
   ensureUserConversationService,
@@ -12,6 +13,7 @@ import {
   listConversationsForAgentService,
   listMessagesService,
   listMyConversationsService,
+  markConversationReadService,
   sendAgentMessageService,
   sendUserMessageService,
   uploadConversationAttachmentService,
@@ -156,6 +158,34 @@ export const closeConversationHandler = catchAsync(
       res,
       message: "Conversation closed",
       data: conversation,
+    });
+  },
+);
+
+export const markConversationReadHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = conversationIdParamSchema.parse(req.params);
+    const userId = req.user!.userId;
+    const role = req.user!.role;
+    await markConversationReadService(id, userId, role);
+    sendSuccess({
+      res,
+      message: "Marked as read",
+      data: null,
+    });
+  },
+);
+
+export const checkOnlineHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const { userId } = req.query as { userId?: string };
+    if (!userId || typeof userId !== "string") {
+      throw ApiError.badRequest("userId query param required");
+    }
+    sendSuccess({
+      res,
+      message: "Online status",
+      data: { userId, isOnline: checkUserOnline(userId) },
     });
   },
 );

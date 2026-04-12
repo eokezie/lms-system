@@ -19,10 +19,14 @@ import {
   listConversationsForAgent,
   listConversationsForUser,
   listMessagesForConversation,
+  markConversationRead,
   updateConversation,
   type ListConversationsOptions,
 } from "./support-conversation.repository";
-import { emitToConversation } from "@/realtime/support-gateway";
+import {
+  emitToConversation,
+  isUserOnline,
+} from "@/realtime/support-gateway";
 
 const SUPPORT_PERSONA_PROMPT = `You are the Infinix Tech LMS support agent. You help students of an online self-paced learning platform that teaches Cybersecurity, Data Analysis, AI/Machine Learning, and Linux/DevOps.
 
@@ -87,6 +91,29 @@ export async function getConversationByIdService(conversationId: string) {
   const conversation = await findConversationById(conversationId);
   if (!conversation) throw ApiError.notFound("Conversation not found");
   return conversation;
+}
+
+export async function markConversationReadService(
+  conversationId: string,
+  userId: string,
+  role: string,
+) {
+  const conversation = await findConversationById(conversationId);
+  if (!conversation) throw ApiError.notFound("Conversation not found");
+
+  const isAgent = role === "admin" || role === "super_admin";
+  const field = isAgent ? "lastReadByAgent" : "lastReadByUser";
+  await markConversationRead(conversationId, field);
+
+  emitToConversation(conversationId, "support:read", {
+    conversationId,
+    by: isAgent ? "agent" : "user",
+    at: new Date().toISOString(),
+  });
+}
+
+export function checkUserOnline(userId: string): boolean {
+  return isUserOnline(userId);
 }
 
 export async function listMessagesService(

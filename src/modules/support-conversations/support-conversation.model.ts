@@ -29,6 +29,8 @@ export interface ISupportConversation extends Document {
   lastMessagePreview?: string;
   lastMessageAt: Date;
   closedAt?: Date | null;
+  lastReadByUser?: Date | null;
+  lastReadByAgent?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +59,8 @@ const supportConversationSchema = new Schema<ISupportConversation>(
     lastMessagePreview: { type: String },
     lastMessageAt: { type: Date, default: Date.now, index: true },
     closedAt: { type: Date, default: null },
+    lastReadByUser: { type: Date, default: null },
+    lastReadByAgent: { type: Date, default: null },
   },
   {
     timestamps: true,

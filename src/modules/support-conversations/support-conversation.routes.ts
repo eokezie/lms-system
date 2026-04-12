@@ -5,6 +5,7 @@ import { validate } from "@/middleware/validate";
 import { processSupportFile } from "@/middleware/multer.middleware";
 import { USER_ROLES } from "@/modules/users/user.model";
 import {
+  checkOnlineHandler,
   claimConversationHandler,
   closeConversationHandler,
   ensureMyConversationHandler,
@@ -13,6 +14,7 @@ import {
   listAgentConversationsHandler,
   listConversationMessagesHandler,
   listMyConversationsHandler,
+  markConversationReadHandler,
   sendAgentMessageHandler,
   sendUserMessageHandler,
   uploadConversationAttachmentHandler,
@@ -57,6 +59,14 @@ router.post(
   validate(conversationIdParamSchema, "params"),
   closeConversationHandler,
 );
+router.post(
+  "/:id/read",
+  validate(conversationIdParamSchema, "params"),
+  markConversationReadHandler,
+);
+
+// --- Presence ---
+router.get("/online", checkOnlineHandler);
 
 router.get(
   "/",

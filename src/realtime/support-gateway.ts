@@ -6,16 +6,24 @@ import { env } from "@/config/env";
 import { logger } from "@/utils/logger";
 import type { JwtPayload } from "@/middleware/auth.middleware";
 
-let io: SocketIOServer | null = null;
+const GLOBAL_IO_KEY = "__spl_support_io";
+
+function getIO(): SocketIOServer | null {
+  return (globalThis as any)[GLOBAL_IO_KEY] ?? null;
+}
+
+function setIO(instance: SocketIOServer) {
+  (globalThis as any)[GLOBAL_IO_KEY] = instance;
+}
 
 const CONVERSATION_ROOM = (conversationId: string) =>
   `support:conversation:${conversationId}`;
 const AGENT_INBOX_ROOM = "support:agents";
 
 export function initSupportGateway(httpServer: HttpServer): SocketIOServer {
-  if (io) return io;
+  if (getIO()) return getIO()!;
 
-  io = new SocketIOServer(httpServer, {
+  const io = new SocketIOServer(httpServer, {
     path: "/socket.io",
     cors: {
       origin:
@@ -93,24 +101,30 @@ export function initSupportGateway(httpServer: HttpServer): SocketIOServer {
     );
   });
 
-  logger.info("[support-gateway] Socket.IO ready on /socket.io");
+  setIO(io);
+  logger.info("[support-gateway] Socket.IO ready on /socket.io (stored on globalThis)");
   return io;
 }
 
-export function getIO(): SocketIOServer | null {
-  return io;
-}
+export { getIO };
 
 export function emitToConversation(
   conversationId: string,
   event: string,
   payload: unknown,
 ) {
-  io?.to(CONVERSATION_ROOM(conversationId)).emit(event, payload);
-  // also broadcast to agents inbox so the list refreshes regardless of who's viewing
-  io?.to(AGENT_INBOX_ROOM).emit(event, payload);
+  const ioInstance = getIO();
+  if (!ioInstance) {
+    logger.warn(
+      "[support-gateway] emitToConversation called but io is null — gateway not initialized",
+    );
+    return;
+  }
+  ioInstance.to(CONVERSATION_ROOM(conversationId)).emit(event, payload);
+  ioInstance.to(AGENT_INBOX_ROOM).emit(event, payload);
 }
 
 export function emitToAgents(event: string, payload: unknown) {
-  io?.to(AGENT_INBOX_ROOM).emit(event, payload);
+  const ioInstance = getIO();
+  ioInstance?.to(AGENT_INBOX_ROOM).emit(event, payload);
 }

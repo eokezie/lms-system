@@ -177,14 +177,17 @@ async function bootstrap(): Promise<void> {
 		registerGamificationListeners();
 		console.log("✓ Gamification listeners registered");
 
-		const server = app.listen(PORT, () => {
+		const http = await import("http");
+		const server = http.createServer(app);
+
+		initSupportGateway(server);
+		console.log("✓ Support Socket.IO gateway attached");
+
+		server.listen(PORT, () => {
 			console.log(
 				`🚀 LMS API running on port ${PORT} [${process.env.NODE_ENV}]`,
 			);
 		});
-
-		initSupportGateway(server);
-		console.log("✓ Support Socket.IO gateway ready");
 
 		const shutdown = async (signal: string) => {
 			logger.info(`${signal} received — shutting down gracefully...`); // Fixed syntax

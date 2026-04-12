@@ -31,6 +31,7 @@ import postsRoutes from "@/modules/posts/posts.routes";
 import forumRoutes from "@/modules/forum/forum.routes";
 import bookmarkRoutes from "@/modules/bookmarks/bookmark.routes";
 import notificationRoutes from "@/modules/notifications/notification.routes";
+import supportConversationRoutes from "@/modules/support-conversations/support-conversation.routes";
 
 const app = express();
 
@@ -119,6 +120,7 @@ app.use("/api/v1/posts", postsRoutes);
 app.use("/api/v1/forum", forumRoutes);
 app.use("/api/v1/bookmarks", bookmarkRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/support/conversations", supportConversationRoutes);
 
 // --- 404 ---
 app.use((_req, res) => {

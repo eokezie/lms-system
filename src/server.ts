@@ -157,6 +157,10 @@ async function bootstrap(): Promise<void> {
 		const { default: app } = await import("./config/app");
 		console.log("✓ App loaded");
 
+		const { initSupportGateway } = await import(
+			"./realtime/support-gateway"
+		);
+
 		const PORT = process.env.PORT || 3000;
 
 		console.log("Connecting to MongoDB...");
@@ -178,6 +182,9 @@ async function bootstrap(): Promise<void> {
 				`🚀 LMS API running on port ${PORT} [${process.env.NODE_ENV}]`,
 			);
 		});
+
+		initSupportGateway(server);
+		console.log("✓ Support Socket.IO gateway ready");
 
 		const shutdown = async (signal: string) => {
 			logger.info(`${signal} received — shutting down gracefully...`); // Fixed syntax

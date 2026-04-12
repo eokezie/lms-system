@@ -15,6 +15,27 @@ export interface LMSEvents {
 	"user.registered": { userId: string; email: string };
 	"user.passwordReset": { userId: string; email: string };
 	"login.daily": { studentId: string };
+	"discussion.reply": {
+		recipientId: string;
+		actorId?: string;
+		threadId: string;
+		courseId: string;
+		preview?: string;
+	};
+	"support.user.replied": {
+		conversationId: string;
+		agentId: string;
+		preview: string;
+	};
+	"support.agent.replied": {
+		conversationId: string;
+		studentId: string;
+		preview: string;
+	};
+	"support.handoff.requested": {
+		conversationId: string;
+		userId: string;
+	};
 }
 
 type EventName = keyof LMSEvents;
@@ -24,7 +45,7 @@ class LMSEventBus extends EventEmitter {
 	 * Typed emit — TypeScript will complain if you pass the wrong payload shape
 	 */
 	emit<K extends EventName>(event: K, payload: LMSEvents[K]): boolean {
-		logger.debug(`[EventBus] emit: ${event}`, { payload });
+		logger.debug({ payload }, `[EventBus] emit: ${event}`);
 		return super.emit(event, payload);
 	}
 
@@ -53,8 +74,6 @@ class LMSEventBus extends EventEmitter {
 export const eventBus = new LMSEventBus();
 
 // Catch any listener that throws — don't let it crash the process silently
-eventBus.on("error", (err: Error) => {
-	logger.error("[EventBus] Unhandled error in listener", {
-		error: err.message,
-	});
+(eventBus as EventEmitter).on("error", (err: Error) => {
+	logger.error({ error: err.message }, "[EventBus] Unhandled error in listener");
 });

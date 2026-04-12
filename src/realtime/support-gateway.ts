@@ -21,7 +21,7 @@ export function initSupportGateway(httpServer: HttpServer): SocketIOServer {
       origin:
         env.NODE_ENV === "production"
           ? process.env.ALLOWED_ORIGINS?.split(",") ?? false
-          : "*",
+          : true,
       credentials: true,
     },
     transports: ["websocket", "polling"],

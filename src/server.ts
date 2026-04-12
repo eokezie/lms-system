@@ -158,7 +158,7 @@ async function bootstrap(): Promise<void> {
 		console.log("✓ App loaded");
 
 		const { initSupportGateway } = await import(
-			"./realtime/support-gateway"
+			"@/realtime/support-gateway"
 		);
 
 		const PORT = process.env.PORT || 3000;

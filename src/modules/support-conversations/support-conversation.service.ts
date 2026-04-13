@@ -25,6 +25,7 @@ import {
 } from "./support-conversation.repository";
 import {
   emitToConversation,
+  emitToUser,
   isUserOnline,
 } from "@/realtime/support-gateway";
 
@@ -232,7 +233,7 @@ export async function sendUserMessageService({
       emitToConversation(conversationId, "support:message", ack);
       return { message: userMessage, handoff: true };
     }
-    void runBotReply(conversationId).catch((err) => {
+    void runBotReply(conversationId, userId).catch((err) => {
       logger.error({ err }, "[support] bot reply failed");
     });
   } else if (conversation.status === "agent_active") {
@@ -293,11 +294,11 @@ export async function sendAgentMessageService({
   });
   emitToConversation(conversationId, "support:message", message);
 
-  // notify the student that an agent replied
   const studentId =
     typeof conversation.user === "object" && conversation.user
       ? String((conversation.user as any)._id)
       : String(conversation.user);
+  emitToUser(studentId, "support:message", message);
 
   eventBus.emit("support.agent.replied", {
     conversationId,
@@ -308,7 +309,10 @@ export async function sendAgentMessageService({
   return message;
 }
 
-async function runBotReply(conversationId: string): Promise<void> {
+async function runBotReply(
+  conversationId: string,
+  studentUserId: string,
+): Promise<void> {
   const messages = await listMessagesForConversation(conversationId);
   const recent = messages
     .filter((m) => m.senderType === "user" || m.senderType === "bot")
@@ -397,6 +401,7 @@ async function runBotReply(conversationId: string): Promise<void> {
     body: replyText.trim(),
   });
   emitToConversation(conversationId, "support:message", botMessage);
+  emitToUser(studentUserId, "support:message", botMessage);
 
   if (shouldHandoffByBotResponse(replyText)) {
     await handoffConversation(conversationId);

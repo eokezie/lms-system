@@ -91,6 +91,8 @@ export function initSupportGateway(httpServer: HttpServer): SocketIOServer {
 
     addPresence(user.userId, socket.id);
 
+    socket.join(`user:${user.userId}`);
+
     if (user.role === "admin" || user.role === "super_admin") {
       socket.join(AGENT_INBOX_ROOM);
     }
@@ -177,4 +179,9 @@ export function emitToConversation(
 export function emitToAgents(event: string, payload: unknown) {
   const ioInstance = getIO();
   ioInstance?.to(AGENT_INBOX_ROOM).emit(event, payload);
+}
+
+export function emitToUser(userId: string, event: string, payload: unknown) {
+  const ioInstance = getIO();
+  ioInstance?.to(`user:${userId}`).emit(event, payload);
 }

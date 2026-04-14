@@ -134,10 +134,14 @@ export function checkIsEnrolled(
 
 export async function getStudentEnrollmentsPaginated(
   studentId: string,
-  options: Omit<EnrollmentPaginationOptions, "studentId">,
+  options: Omit<EnrollmentPaginationOptions, "studentId"> & {
+    type?: EnrollmentPaginationOptions["filterType"];
+  },
 ) {
+  const { type, filterType, ...rest } = options;
   return findEnrollmentsForStudentPaginated({
-    ...options,
+    ...rest,
+    filterType: filterType ?? type,
     studentId,
   });
 }

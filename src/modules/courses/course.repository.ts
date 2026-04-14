@@ -108,15 +108,16 @@ function getTimeRangeFilter(
   avgTimeToComplete: CoursePaginationOptions["avgTimeToComplete"],
 ): { $gte?: number; $lte?: number } | null {
   if (!avgTimeToComplete) return null;
+  const H = 60;
   switch (avgTimeToComplete) {
     case "0-5":
-      return { $gte: 0, $lte: 5 };
+      return { $gte: 0, $lte: 5 * H };
     case "6-15":
-      return { $gte: 6, $lte: 15 };
+      return { $gte: 6 * H, $lte: 15 * H };
     case "16-25":
-      return { $gte: 16, $lte: 25 };
+      return { $gte: 16 * H, $lte: 25 * H };
     case "26+":
-      return { $gte: 26 };
+      return { $gte: 26 * H };
     default:
       return null;
   }

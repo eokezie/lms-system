@@ -21,6 +21,10 @@ export const getStudentEnrollmentsQuerySchema = z.object({
   sort: enrollmentSortEnum.optional().default("newest"),
 });
 
+export const enrollFreeCourseBodySchema = z.object({
+  courseId: z.string().length(24, "Invalid course ID"),
+});
+
 export const getCourseEnrollmentsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),

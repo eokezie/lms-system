@@ -11,6 +11,7 @@ const router = Router({ mergeParams: true });
 
 const noteBodySchema = z.object({
   content: z.string().trim().min(1),
+  timestamp: z.string().trim().max(16).optional(),
 });
 
 router.use(authenticate);
@@ -64,6 +65,7 @@ router.post(
       course: courseId,
       lesson: lessonId,
       content: body.content,
+      timestamp: body.timestamp,
     });
 
     sendSuccess({

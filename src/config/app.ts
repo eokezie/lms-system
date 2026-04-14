@@ -56,11 +56,27 @@ const globalLimiter = rateLimit({
 	legacyHeaders: false,
 	skip: (req) => {
 		const path = req.path || req.url || "";
-		return (
+		if (
 			path.startsWith("/api/v1/support/") ||
 			path.startsWith("/api/v1/notifications") ||
 			path.startsWith("/socket.io")
-		);
+		) {
+			return true;
+		}
+		/** Read-heavy browsing endpoints: a student flipping between course pages
+		 * fans out many GETs (courses, categories, enrollments, bookmarks, ratings)
+		 * and should never hit the global limiter. Writes on these paths still count. */
+		if (req.method === "GET") {
+			return (
+				path.startsWith("/api/v1/courses") ||
+				path.startsWith("/api/v1/categories") ||
+				path.startsWith("/api/v1/enrollments") ||
+				path.startsWith("/api/v1/bookmarks") ||
+				path.startsWith("/api/v1/ratings") ||
+				path.startsWith("/api/v1/career-paths")
+			);
+		}
+		return false;
 	},
 	message: {
 		success: false,

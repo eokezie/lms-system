@@ -5,10 +5,12 @@ import { z } from "zod";
 import {
   getStudentEnrollmentsQuerySchema,
   getCourseEnrollmentsQuerySchema,
+  enrollFreeCourseBodySchema,
 } from "./enrollment.validation";
 import {
   getStudentEnrollmentsPaginated,
   getCourseEnrollmentsListService,
+  enrollStudentInFreeCourse,
 } from "./enrollment.service";
 
 type GetStudentEnrollmentsQuery = z.infer<
@@ -43,6 +45,19 @@ export const getCourseEnrollmentsForCourseHandler = catchAsync(
         total: result.total,
         totalPages: result.totalPages,
       },
+    });
+  },
+);
+
+export const enrollFreeCourseHandler = catchAsync(
+  async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const { courseId } = enrollFreeCourseBodySchema.parse(req.body);
+    const enrollment = await enrollStudentInFreeCourse(studentId, courseId);
+    sendSuccess({
+      res,
+      message: "Enrolled successfully",
+      data: enrollment,
     });
   },
 );

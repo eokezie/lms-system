@@ -20,6 +20,20 @@ import {
 import { ApiError } from "@/utils/apiError";
 import { eventBus } from "@/events/eventBus";
 
+export async function enrollStudentInFreeCourse(
+  studentId: string,
+  courseId: string,
+): Promise<IEnrollment> {
+  const course = await findCourseById(courseId);
+  if (!course) throw ApiError.notFound("Course not found");
+  if (!course.isFree) {
+    throw ApiError.badRequest(
+      "This course is not free; complete checkout to enroll",
+    );
+  }
+  return enrollStudent(studentId, courseId);
+}
+
 export async function enrollStudent(
   studentId: string,
   courseId: string,

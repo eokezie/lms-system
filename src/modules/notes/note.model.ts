@@ -6,6 +6,7 @@ export interface ILessonNote extends Document {
   course: Types.ObjectId;
   lesson: Types.ObjectId;
   content: string;
+  timestamp?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +17,7 @@ const lessonNoteSchema = new Schema<ILessonNote>(
     course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
     lesson: { type: Schema.Types.ObjectId, ref: "Lesson", required: true },
     content: { type: String, required: true, trim: true },
+    timestamp: { type: String, trim: true },
   },
   {
     timestamps: true,
